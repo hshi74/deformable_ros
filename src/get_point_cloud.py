@@ -1,0 +1,126 @@
+import time
+import numpy as np
+import os
+
+import rosbag
+import rospy
+import ros_numpy
+import sys
+import tf
+import tf2_ros
+import yaml
+
+from datetime import datetime
+from message_filters import ApproximateTimeSynchronizer, Subscriber
+from geometry_msgs.msg import TransformStamped
+from sensor_msgs.msg import PointCloud2
+from std_msgs.msg import UInt8
+from timeit import default_timer as timer
+from transforms3d.quaternions import *
+
+import manipulator
+
+fixed_frame = 'panda_link0'
+task_name = 'ngrip_fixed_robot_1-19'
+num_cams = 4
+cd = os.path.dirname(os.path.realpath(sys.argv[0]))
+bag_path = os.path.join(cd, '..', 'dataset', task_name, datetime.now().strftime("%d-%b-%Y-%H:%M:%S.%f"))
+os.system('mkdir -p ' + f"{bag_path}")
+with open(os.path.join(os.path.join(cd, '..', 'env'), 'cam_pose_new.yml'), 'r') as f:
+    cam_pose_dict = yaml.load(f, Loader=yaml.FullLoader)
+
+
+# 0 -> uninitialized / pause; 1 -> start; 2 -> stop
+signal = 0
+def signal_callback(msg):
+    global signal
+    signal = msg.data
+
+
+time_start = 0.0
+time_last = 0.0
+time_now = 0.0
+def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
+    global signal
+    global time_start
+    global time_last
+    global time_now
+
+    if signal == 1:
+        if time_start == 0.0:
+            time_start = cam1_msg.header.stamp.to_sec()
+
+        time_now = cam1_msg.header.stamp.to_sec() - time_start
+        # print(time_now - time_last)
+        if time_now == 0.0 or time_now - time_last > 0.1:
+            bag = rosbag.Bag(os.path.join(bag_path, f'{time_now:.3f}.bag'), 'w')
+            bag.write('/cam1/depth/color/points', cam1_msg)
+            bag.write('/cam2/depth/color/points', cam2_msg)
+            bag.write('/cam3/depth/color/points', cam3_msg)
+            bag.write('/cam4/depth/color/points', cam4_msg)
+
+            gripper_1_pose, gripper_2_pose = manipulator.robot.get_gripper_pose()
+            bag.write('/gripper_1_pose', gripper_1_pose)
+            bag.write('/gripper_2_pose', gripper_2_pose)
+
+            bag.close()
+
+            time_last = time_now
+
+
+def main():
+    global signal
+    rospy.init_node('point_cloud_writer', anonymous=True)
+
+    rospy.Subscriber("/signal", UInt8, signal_callback)
+
+    tss = ApproximateTimeSynchronizer(
+        (Subscriber("/cam1/depth/color/points", PointCloud2), 
+        Subscriber("/cam2/depth/color/points", PointCloud2), 
+        Subscriber("/cam3/depth/color/points", PointCloud2), 
+        Subscriber("/cam4/depth/color/points", PointCloud2)),
+        queue_size=10,
+        slop=0.1
+    )
+
+    tss.registerCallback(cloud_callback)
+
+    static_br = tf2_ros.StaticTransformBroadcaster()
+    static_ts_list = []
+    for i in range(1, num_cams + 1):
+        static_ts = TransformStamped()
+        # static_ts.header.stamp = rospy.Time.now()
+        static_ts.header.frame_id = fixed_frame
+        static_ts.child_frame_id = f"cam{i}_link"
+
+        static_ts.transform.translation.x = cam_pose_dict[f"cam_{i}"][0]
+        static_ts.transform.translation.y = cam_pose_dict[f"cam_{i}"][1]
+        static_ts.transform.translation.z = cam_pose_dict[f"cam_{i}"][2]
+
+        static_ts.transform.rotation.x = cam_pose_dict[f"cam_{i}"][3]
+        static_ts.transform.rotation.y = cam_pose_dict[f"cam_{i}"][4]
+        static_ts.transform.rotation.z = cam_pose_dict[f"cam_{i}"][5]
+        static_ts.transform.rotation.w = cam_pose_dict[f"cam_{i}"][6]
+        
+        static_ts_list.append(static_ts)
+
+    static_br.sendTransform(static_ts_list)
+
+    # br = tf.TransformBroadcaster()
+    rate = rospy.Rate(100)
+    while not rospy.is_shutdown():
+        # for cam_idx in range(1, num_cams + 1):
+        #     cam_pose_world = cam_pose_dict[f"cam_{cam_idx}"]
+        #     cam_pos_world = cam_pose_world[:3]
+        #     cam_ori_world = cam_pose_world[3:]
+        #     # print(cam_pos_world, cam_ori_world)
+        #     br.sendTransform(tuple(cam_pos_world), tuple(cam_ori_world), rospy.Time.now(), f"cam{cam_idx}_link", fixed_frame)
+
+        # STOP
+        if signal == 2: break
+        
+        rate.sleep()
+
+
+if __name__ == '__main__':
+    main()

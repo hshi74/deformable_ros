@@ -1,0 +1,9 @@
+<launch>
+	<arg name="name" default="calibration" />
+	<arg name="load_gripper" default="true" />
+	<param name="robot_description" command="$(find xacro)/xacro --inorder $(find franka_description)/robots/panda_arm.urdf.xacro hand:=$(arg load_gripper)" />
+
+	<node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
+	<!-- <node pkg="tf" type="static_transform_publisher" name="air_tag_0_broadcaster" args="1 0 0 0 0 0 1 panda_link0 ar_marker_0 100" /> -->
+	<node type="rviz" name="rviz" pkg="rviz" args="-d $(find RoboCook_ROS)/rviz/$(arg name).rviz" />
+</launch>
