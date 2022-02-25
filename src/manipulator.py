@@ -23,7 +23,9 @@ from transforms3d.quaternions import *
 # Grasp params
 mid_point = np.array([0.437, 0.0])
 rest_pose = ([mid_point[0], 0.0, 0.6], [1.0, 0.0, 0.0, 0.0])
-grasp_speed = 0.02
+# grasp_speed = 0.01
+# grasp_force = 20.0
+grasp_speed = 0.1
 grasp_force = 10.0
 
 planner_dt = 0.01
@@ -47,7 +49,7 @@ class ManipulatorSystem:
                 'Kxd': torch.tensor([35., 35., 35., 14., 14., 14.])
             },
             'high': {
-                'Kx': torch.tensor([600., 600., 1200., 160., 160., 160.]),
+                'Kx': torch.tensor([1200., 1200., 1200., 160., 160., 160.]),
                 'Kxd': torch.tensor([35., 35., 35., 14., 14., 14.])
             }
         }
@@ -185,16 +187,19 @@ class ManipulatorSystem:
         self.move_to(*pregrasp_pose)
 
 
-    def take_away(self, grasp_params, grasp_h, pregrasp_dh, grasp_width=0.02):
-        self.open_gripper()
+    def take_away(self, grasp_params, grasp_h, pregrasp_dh, grasp_width, lift_dh=0.01):
+        pregrasp_h = grasp_h + pregrasp_dh
+        lift_h = grasp_h + pregrasp_dh + lift_dh
 
-        prep_pose = self.grasp_pose_to_pos_quat((mid_point[0], mid_point[1], grasp_params[2]), grasp_h + pregrasp_dh)
-        self.set_policy(self.gain_dict['low']['Kx'], self.gain_dict['low']['Kxd'])
+        self.close_gripper(grasp_width + 0.04)
+
+        prep_pose = self.grasp_pose_to_pos_quat((mid_point[0], mid_point[1], grasp_params[2]), pregrasp_h)
+        self.set_policy(self.gain_dict['high']['Kx'], self.gain_dict['high']['Kxd'])
         self.move_to(*prep_pose)
 
         # Move to pregrasp
         print("Pregrasp:")
-        pregrasp_pose = self.grasp_pose_to_pos_quat(grasp_params, grasp_h + pregrasp_dh)
+        pregrasp_pose = self.grasp_pose_to_pos_quat(grasp_params, pregrasp_h)
         self.set_policy(self.gain_dict['high']['Kx'], self.gain_dict['high']['Kxd'])
         self.move_to(*pregrasp_pose)
 
@@ -206,31 +211,41 @@ class ManipulatorSystem:
 
         # Grasp
         self.close_gripper(grasp_width)
+
+        # Lift the tool
+        print("Lift the tool:")
+        lift_pose = self.grasp_pose_to_pos_quat(grasp_params, lift_h)
+        self.set_policy(self.gain_dict['high']['Kx'], self.gain_dict['high']['Kxd'])
+        self.move_to(*lift_pose)
         
         # grasp the tool from the shelf
         print("Take away the tool:")
-        idle_pose = self.grasp_pose_to_pos_quat((grasp_params[0], grasp_params[1] - 0.06, grasp_params[2]), grasp_h)
+        idle_pose = self.grasp_pose_to_pos_quat((grasp_params[0], grasp_params[1] - 0.1, grasp_params[2]), lift_h)
         self.set_policy(self.gain_dict['high']['Kx'], self.gain_dict['high']['Kxd'])
         self.move_to(*idle_pose)
 
-        prep_pose = self.grasp_pose_to_pos_quat((mid_point[0], mid_point[1], grasp_params[2]), grasp_h + pregrasp_dh)
+        print("Back to prep pose:")
+        prep_pose = self.grasp_pose_to_pos_quat((mid_point[0], mid_point[1], grasp_params[2]), pregrasp_h)
         self.set_policy(self.gain_dict['low']['Kx'], self.gain_dict['low']['Kxd'])
         self.move_to(*prep_pose)
 
 
-    def put_back(self, grasp_params, grasp_h, pregrasp_dh):
-        prep_pose = self.grasp_pose_to_pos_quat((mid_point[0], mid_point[1], grasp_params[2]), grasp_h + pregrasp_dh)
+    def put_back(self, grasp_params, grasp_h, pregrasp_dh, lift_dh=0.05):
+        pregrasp_h = grasp_h + pregrasp_dh
+        lift_h = grasp_h + pregrasp_dh + lift_dh
+
+        prep_pose = self.grasp_pose_to_pos_quat((mid_point[0], mid_point[1], grasp_params[2]), pregrasp_h)
         self.set_policy(self.gain_dict['low']['Kx'], self.gain_dict['low']['Kxd'])
         self.move_to(*prep_pose)
 
         # Get to the insert position
         print("Get to the insert position:")
-        idle_pose = self.grasp_pose_to_pos_quat((grasp_params[0], grasp_params[1] - 0.06, grasp_params[2]), grasp_h)
+        idle_pose = self.grasp_pose_to_pos_quat((grasp_params[0], grasp_params[1] - 0.1, grasp_params[2]), pregrasp_h)
         self.set_policy(self.gain_dict['high']['Kx'], self.gain_dict['high']['Kxd'])
         self.move_to(*idle_pose)
 
         print("Insert:")
-        grasp_pose = self.grasp_pose_to_pos_quat(grasp_params, grasp_h)
+        grasp_pose = self.grasp_pose_to_pos_quat(grasp_params, pregrasp_h)
         self.set_policy(self.gain_dict['high']['Kx'], self.gain_dict['high']['Kxd'])
         self.move_to(*grasp_pose)
 
@@ -239,11 +254,12 @@ class ManipulatorSystem:
 
         # Move to pregrasp
         print("Lift:")
-        pregrasp_pose = self.grasp_pose_to_pos_quat(grasp_params, grasp_h + pregrasp_dh)
+        pregrasp_pose = self.grasp_pose_to_pos_quat(grasp_params, lift_h)
         self.set_policy(self.gain_dict['high']['Kx'], self.gain_dict['high']['Kxd'])
         self.move_to(*pregrasp_pose)
 
-        prep_pose = self.grasp_pose_to_pos_quat((mid_point[0], mid_point[1], grasp_params[2]), grasp_h + pregrasp_dh)
+        print("Back to prep pose:")
+        prep_pose = self.grasp_pose_to_pos_quat((mid_point[0], mid_point[1], grasp_params[2]), pregrasp_h)
         self.set_policy(self.gain_dict['low']['Kx'], self.gain_dict['low']['Kxd'])
         self.move_to(*prep_pose)
 

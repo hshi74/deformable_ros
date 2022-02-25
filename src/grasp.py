@@ -24,11 +24,8 @@ n_grips = 3
 p_mid_point = np.array([0.437, 0.0])
 p_noise_scale = 0.005
 rest_pose = ([p_mid_point[0], 0.0, 0.6], [1.0, 0.0, 0.0, 0.0])
-grasp_h = {
-    'plasticine': 0.1034 + 0.075 + 0.06 - 0.035, # ee_to_finger + finger_to_bot + cube_h + extra
-    'shelf': 0.318, # 0.321
-}
-pregrasp_dh = 0.1
+plasticine_grasp_h = 0.1034 + 0.075 + 0.06 - 0.035, # ee_to_finger + finger_to_bot + cube_h + extra
+plasticine_pregrasp_dh = 0.1
 grasp_force = 100.0
 grasp_speed = 0.01
 
@@ -71,7 +68,7 @@ def grasp_random():
 
             # Perform grasp
             print(f"========== Grasp {i+1} ==========")
-            robot.grasp(grasp_params, grasp_h['plasticine'], pregrasp_dh)
+            robot.grasp(grasp_params, plasticine_grasp_h, plasticine_pregrasp_dh)
 
             # Loop termination
             i += 1
@@ -239,7 +236,7 @@ def grasp_as_plan(mode):
             for i in range(len(grasp_params_list)):
                 # Perform grasp
                 # last = i == len(grasp_params_list) - 1
-                robot.grasp(grasp_params_list[i], grasp_h['plasticine'], pregrasp_dh, grasp_width_list[i])
+                robot.grasp(grasp_params_list[i], plasticine_grasp_h, plasticine_pregrasp_dh, grasp_width_list[i])
 
             robot.reset()
 
@@ -260,10 +257,19 @@ def main():
 
     # grasp_random()
     # grasp_as_plan('replay')
-    # grasp_params = (0.396, 0.248, np.pi / 4)
-    grasp_params = (0.401, 0.242, np.pi / 4)
-    # robot.take_away(grasp_params, grasp_h['shelf'], pregrasp_dh)
-    robot.put_back(grasp_params, grasp_h['shelf'] + 0.003, pregrasp_dh)
+
+    # take away the tool
+    grasp_params = (0.4, 0.275, np.pi / 4)
+    grasp_h =  0.31
+    pregrasp_dh = 0.01
+    grasp_width = 0.015
+    robot.take_away(grasp_params, grasp_h, pregrasp_dh, grasp_width)
+    
+    # put the tool back
+    grasp_params = (0.4, 0.275, np.pi / 4)
+    grasp_h =  0.31
+    pregrasp_dh = 0.015
+    robot.put_back(grasp_params, grasp_h, pregrasp_dh)
 
 
 if __name__ == "__main__":
