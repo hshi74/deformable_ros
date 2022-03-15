@@ -1,5 +1,5 @@
 <launch>
-	<arg name="name" default="calibration" />
+	<arg name="name" default="point_cloud" />
 	<arg name="load_gripper" default="true" />
 	<param name="robot_description" command="$(find xacro)/xacro --inorder $(find franka_description)/robots/panda_arm.urdf.xacro hand:=$(arg load_gripper)" />
 

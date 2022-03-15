@@ -6,14 +6,16 @@ Panels:
       Expanded:
         - /Global Options1
         - /Status1
-        - /Grid1
-        - /TF1/Tree1
+        - /RobotModel1
+        - /TF1
+        - /TF1/Status1
+        - /TF1/Frames1
         - /DepthCloud1/Auto Size1
         - /DepthCloud2/Auto Size1
         - /DepthCloud3/Auto Size1
         - /DepthCloud4/Auto Size1
-      Splitter Ratio: 0.4810469448566437
-    Tree Height: 1053
+      Splitter Ratio: 0.5484727621078491
+    Tree Height: 1397
   - Class: rviz/Selection
     Name: Selection
   - Class: rviz/Tool Properties
@@ -135,10 +137,78 @@ Visualization Manager:
       Value: true
       Visual Enabled: true
     - Class: rviz/TF
-      Enabled: false
+      Enabled: true
       Frame Timeout: 15
       Frames:
         All Enabled: false
+        cam1_color_frame:
+          Value: false
+        cam1_color_optical_frame:
+          Value: false
+        cam1_depth_frame:
+          Value: false
+        cam1_depth_optical_frame:
+          Value: false
+        cam1_link:
+          Value: true
+        cam2_color_frame:
+          Value: false
+        cam2_color_optical_frame:
+          Value: false
+        cam2_depth_frame:
+          Value: false
+        cam2_depth_optical_frame:
+          Value: false
+        cam2_link:
+          Value: true
+        cam3_color_frame:
+          Value: false
+        cam3_color_optical_frame:
+          Value: false
+        cam3_depth_frame:
+          Value: false
+        cam3_depth_optical_frame:
+          Value: false
+        cam3_link:
+          Value: true
+        cam4_color_frame:
+          Value: false
+        cam4_color_optical_frame:
+          Value: false
+        cam4_depth_frame:
+          Value: false
+        cam4_depth_optical_frame:
+          Value: false
+        cam4_link:
+          Value: true
+        panda_hand:
+          Value: false
+        panda_leftfinger:
+          Value: false
+        panda_link0:
+          Value: true
+        panda_link1:
+          Value: false
+        panda_link2:
+          Value: false
+        panda_link3:
+          Value: false
+        panda_link4:
+          Value: false
+        panda_link5:
+          Value: false
+        panda_link6:
+          Value: false
+        panda_link7:
+          Value: false
+        panda_link8:
+          Value: false
+        panda_rightfinger:
+          Value: false
+        tag:
+          Value: true
+        world:
+          Value: false
       Marker Alpha: 1
       Marker Scale: 1
       Name: TF
@@ -146,17 +216,61 @@ Visualization Manager:
       Show Axes: true
       Show Names: false
       Tree:
-        {}
+        panda_link0:
+          cam1_link:
+            cam1_color_frame:
+              cam1_color_optical_frame:
+                tag:
+                  {}
+            cam1_depth_frame:
+              cam1_depth_optical_frame:
+                {}
+          cam2_link:
+            cam2_color_frame:
+              cam2_color_optical_frame:
+                {}
+            cam2_depth_frame:
+              cam2_depth_optical_frame:
+                {}
+          cam3_link:
+            cam3_color_frame:
+              cam3_color_optical_frame:
+                {}
+            cam3_depth_frame:
+              cam3_depth_optical_frame:
+                {}
+          cam4_link:
+            cam4_color_frame:
+              cam4_color_optical_frame:
+                {}
+            cam4_depth_frame:
+              cam4_depth_optical_frame:
+                {}
+          panda_link1:
+            panda_link2:
+              panda_link3:
+                panda_link4:
+                  panda_link5:
+                    panda_link6:
+                      panda_link7:
+                        panda_link8:
+                          panda_hand:
+                            panda_leftfinger:
+                              {}
+                            panda_rightfinger:
+                              {}
+        world:
+          {}
       Update Interval: 0
-      Value: false
+      Value: true
     - Class: rviz/Marker
-      Enabled: false
+      Enabled: true
       Marker Topic: visualization_marker
       Name: Marker
       Namespaces:
         {}
       Queue Size: 100
-      Value: false
+      Value: true
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -225,7 +339,7 @@ Visualization Manager:
       Color: 255; 255; 255
       Color Transformer: RGB8
       Decay Time: 0
-      Enabled: true
+      Enabled: false
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Min Color: 0; 0; 0
@@ -240,7 +354,7 @@ Visualization Manager:
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
-      Value: true
+      Value: false
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -253,7 +367,7 @@ Visualization Manager:
       Color: 255; 255; 255
       Color Transformer: RGB8
       Decay Time: 0
-      Enabled: true
+      Enabled: false
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Min Color: 0; 0; 0
@@ -268,7 +382,7 @@ Visualization Manager:
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
-      Value: true
+      Value: false
     - Alpha: 1
       Auto Size:
         Auto Size Factor: 1
@@ -286,7 +400,7 @@ Visualization Manager:
       Color Transformer: RGB8
       Color Transport Hint: raw
       Decay Time: 0
-      Depth Map Topic: /cam1/depth/image_rect_raw
+      Depth Map Topic: /cam1/aligned_depth_to_color/image_raw
       Depth Map Transport Hint: raw
       Enabled: false
       Invert Rainbow: false
@@ -322,7 +436,7 @@ Visualization Manager:
       Color Transformer: RGB8
       Color Transport Hint: raw
       Decay Time: 0
-      Depth Map Topic: /cam2/depth/image_rect_raw
+      Depth Map Topic: /cam2/aligned_depth_to_color/image_raw
       Depth Map Transport Hint: raw
       Enabled: false
       Invert Rainbow: false
@@ -358,7 +472,7 @@ Visualization Manager:
       Color Transformer: RGB8
       Color Transport Hint: raw
       Decay Time: 0
-      Depth Map Topic: /cam3/depth/image_rect_raw
+      Depth Map Topic: /cam3/aligned_depth_to_color/image_raw
       Depth Map Transport Hint: raw
       Enabled: false
       Invert Rainbow: false
@@ -394,7 +508,7 @@ Visualization Manager:
       Color Transformer: RGB8
       Color Transport Hint: raw
       Decay Time: 0
-      Depth Map Topic: /cam4/depth/image_rect_raw
+      Depth Map Topic: /cam4/aligned_depth_to_color/image_raw
       Depth Map Transport Hint: raw
       Enabled: false
       Invert Rainbow: false
@@ -441,7 +555,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 0.9611638784408569
+      Distance: 0.9535950422286987
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -449,25 +563,25 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 0.43095695972442627
-        Y: -0.008345749229192734
-        Z: 0.02099045366048813
+        X: 0.4080676734447479
+        Y: -0.022876884788274765
+        Z: -0.040689170360565186
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.0402034521102905
+      Pitch: 0.5097962021827698
       Target Frame: <Fixed Frame>
-      Yaw: 0.06385806947946548
+      Yaw: 0.43741583824157715
     Saved: ~
 Window Geometry:
   Displays:
     collapsed: false
-  Height: 1613
+  Height: 1957
   Hide Left Dock: false
   Hide Right Dock: false
-  QMainWindow State: 000000ff00000000fd0000000400000000000002b500000545fc0200000008fb0000001200530065006c0065006300740069006f006e00000001e10000009b000000b000fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000b0fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000006e000005450000018200fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261000000010000021f00000545fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073000000006e000005450000013200fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e1000001970000000300000ad800000060fc0100000002fb0000000800540069006d0065010000000000000ad80000057100fffffffb0000000800540069006d00650100000000000004500000000000000000000008170000054500000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd0000000400000000000002590000069dfc0200000008fb0000001200530065006c0065006300740069006f006e00000001e10000009b000000b000fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000b0fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000006e0000069d0000018200fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261000000010000021f00000545fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073000000006e000005450000013200fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000009a000000060fc0100000002fb0000000800540069006d00650100000000000009a00000057100fffffffb0000000800540069006d006501000000000000045000000000000000000000073b0000069d00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Selection:
     collapsed: false
   Time:
@@ -476,6 +590,6 @@ Window Geometry:
     collapsed: false
   Views:
     collapsed: false
-  Width: 2776
-  X: 892
-  Y: 303
+  Width: 2464
+  X: 44
+  Y: 134

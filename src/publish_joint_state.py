@@ -16,7 +16,7 @@ def get_joint_states(robot, gripper):
 
 
 def main():
-    rospy.init_node('rviz_viewer', anonymous=True)
+    rospy.init_node('joint_state_publisher', anonymous=True)
 
     # Initialize robot interface
     robot = RobotInterface(
@@ -45,12 +45,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
-
-
-
-def main():
-    rospy.init_node('rviz_viewer')
-
-if __name__ == '__main__':
     main()
