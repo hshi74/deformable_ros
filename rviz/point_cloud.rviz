@@ -8,7 +8,6 @@ Panels:
         - /Status1
         - /RobotModel1
         - /TF1
-        - /TF1/Status1
         - /TF1/Frames1
         - /DepthCloud1/Auto Size1
         - /DepthCloud2/Auto Size1
@@ -34,7 +33,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: PointCloud2
+    SyncSource: ""
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -205,10 +204,6 @@ Visualization Manager:
           Value: false
         panda_rightfinger:
           Value: false
-        tag:
-          Value: true
-        world:
-          Value: false
       Marker Alpha: 1
       Marker Scale: 1
       Name: TF
@@ -217,35 +212,6 @@ Visualization Manager:
       Show Names: false
       Tree:
         panda_link0:
-          cam1_link:
-            cam1_color_frame:
-              cam1_color_optical_frame:
-                tag:
-                  {}
-            cam1_depth_frame:
-              cam1_depth_optical_frame:
-                {}
-          cam2_link:
-            cam2_color_frame:
-              cam2_color_optical_frame:
-                {}
-            cam2_depth_frame:
-              cam2_depth_optical_frame:
-                {}
-          cam3_link:
-            cam3_color_frame:
-              cam3_color_optical_frame:
-                {}
-            cam3_depth_frame:
-              cam3_depth_optical_frame:
-                {}
-          cam4_link:
-            cam4_color_frame:
-              cam4_color_optical_frame:
-                {}
-            cam4_depth_frame:
-              cam4_depth_optical_frame:
-                {}
           panda_link1:
             panda_link2:
               panda_link3:
@@ -259,8 +225,6 @@ Visualization Manager:
                               {}
                             panda_rightfinger:
                               {}
-        world:
-          {}
       Update Interval: 0
       Value: true
     - Class: rviz/Marker
@@ -339,7 +303,7 @@ Visualization Manager:
       Color: 255; 255; 255
       Color Transformer: RGB8
       Decay Time: 0
-      Enabled: false
+      Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Min Color: 0; 0; 0
@@ -354,7 +318,7 @@ Visualization Manager:
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
-      Value: false
+      Value: true
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -367,7 +331,7 @@ Visualization Manager:
       Color: 255; 255; 255
       Color Transformer: RGB8
       Decay Time: 0
-      Enabled: false
+      Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Min Color: 0; 0; 0
@@ -382,7 +346,7 @@ Visualization Manager:
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
-      Value: false
+      Value: true
     - Alpha: 1
       Auto Size:
         Auto Size Factor: 1
@@ -555,7 +519,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 0.9535950422286987
+      Distance: 2.875932455062866
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -571,9 +535,9 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.5097962021827698
+      Pitch: 1.0647984743118286
       Target Frame: <Fixed Frame>
-      Yaw: 0.43741583824157715
+      Yaw: 0.025575291365385056
     Saved: ~
 Window Geometry:
   Displays:
@@ -591,5 +555,5 @@ Window Geometry:
   Views:
     collapsed: false
   Width: 2464
-  X: 44
-  Y: 134
+  X: 144
+  Y: 54

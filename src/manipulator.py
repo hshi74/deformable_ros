@@ -41,7 +41,7 @@ class ManipulatorSystem:
             enforce_version=False,
         )
 
-        # self.update_urdf("/scr/hxu/catkin_ws/src/RoboCook_ROS/urdf/panda_arm_hand.urdf")
+        # self.update_urdf("/scr/hxu/catkin_ws/src/robocook_ros/urdf/panda_arm_hand.urdf")
 
         self.gain_dict = {
             'low': {

@@ -57,11 +57,12 @@ def main():
 
     cam_idx = tune_idx
     cam_pos_world = camera_pose_dict[f"cam_{cam_idx}"]["position"]
-    cam_ori_world_init = camera_pose_dict[f"cam_{cam_idx}"]["orientation"]
+    cam_ori_world = camera_pose_dict[f"cam_{cam_idx}"]["orientation"]
     pcd_rot_vec = [0.0, 0.0, 0.0]
     
     br = tf.TransformBroadcaster()
     rate = rospy.Rate(100)
+    save = False
     while not rospy.is_shutdown():
         key = readchar.readkey()
         if key == 'w':
@@ -88,6 +89,9 @@ def main():
             pcd_rot_vec[2] += rot_stride
         elif key == '6':
             pcd_rot_vec[2] -= rot_stride
+        elif key == 's':
+            save = True
+            break
         elif key == 'c':
             break
 
@@ -97,7 +101,7 @@ def main():
             axangle2quat([0, 0, 1], pcd_rot_vec[2])), 
             [1.0, 0.0, 0.0, 0.0])
 
-        cam_ori_world = qmult(pcd_ori_world, cam_ori_world_init)
+        cam_ori_world = qmult(pcd_ori_world, cam_ori_world)
         cam_ori_world = [float(x) for x in cam_ori_world]
         print(f"Pos: {cam_pos_world}\nOri: {cam_ori_world}")
         br.sendTransform(tuple(cam_pos_world),
@@ -106,11 +110,12 @@ def main():
         
         rate.sleep()
 
-    print(f"Final pos: {cam_pos_world}\nFinal ori: {cam_ori_world}")
-    camera_pose_dict[f"cam_{cam_idx}"]["position"] = cam_pos_world
-    camera_pose_dict[f"cam_{cam_idx}"]["orientation"] = cam_ori_world
-    with open(os.path.join(data_dir, 'camera_pose_world.yml'), 'w') as f:
-        yaml.dump(camera_pose_dict, f)
+    if save:
+        print(f"Final pos: {cam_pos_world}\nFinal ori: {cam_ori_world}")
+        camera_pose_dict[f"cam_{cam_idx}"]["position"] = cam_pos_world
+        camera_pose_dict[f"cam_{cam_idx}"]["orientation"] = cam_ori_world
+        with open(os.path.join(data_dir, 'camera_pose_world.yml'), 'w') as f:
+            yaml.dump(camera_pose_dict, f)
 
 
 if __name__ == '__main__':

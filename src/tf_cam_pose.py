@@ -28,7 +28,7 @@ def main():
     with open(os.path.join(data_dir, 'camera_tag.yml'), 'r') as f:
         camera_tag_dict = yaml.load(f, Loader=yaml.FullLoader)
 
-    with open(os.path.join(data_dir, 'camera_pose_tuned.yml'), 'r') as f:
+    with open(os.path.join(data_dir, 'camera_pose.yml'), 'r') as f:
         camera_pose_dict = yaml.load(f, Loader=yaml.FullLoader)
 
     # tf_listener = tf.TransformListener()
