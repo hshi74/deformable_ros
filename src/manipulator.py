@@ -21,8 +21,6 @@ from torchcontrol.transform import Transformation as T
 from transforms3d.quaternions import *
 
 # Grasp params
-mid_point = np.array([0.4, 0.0])
-rest_pose = ([mid_point[0], mid_point[1], 0.4], [1.0, 0.0, 0.0, 0.0])
 # grasp_speed = 0.01
 # grasp_force = 20.0
 grasp_speed = 0.05
@@ -54,7 +52,7 @@ class ManipulatorSystem:
             }
         }
 
-        self.set_policy(self.gain_dict['low']['Kx'], self.gain_dict['low']['Kxd'])
+        self.set_policy(self.gain_dict['high']['Kx'], self.gain_dict['high']['Kxd'])
 
         self.gripper = GripperInterface(
             ip_address="192.168.0.2",
@@ -63,8 +61,10 @@ class ManipulatorSystem:
         self.signal_pub = rospy.Publisher('/signal', UInt8, queue_size=10)
 
         # Reset to rest pose
-        self.rest_pos = torch.Tensor(rest_pose[0])
-        self.rest_quat = torch.Tensor(rest_pose[1])
+        self.rest_pose = self.grasp_pose_to_pos_quat((0.4, 0.0, np.pi / 4), 0.35)
+        self.rest_pos = self.rest_pose[0]
+        self.rest_quat = self.rest_pose[1]
+
         # self.reset()
 
 
@@ -72,7 +72,7 @@ class ManipulatorSystem:
         self.arm.terminate_current_policy()
 
 
-    def reset(self, time_to_go=4.0):
+    def reset(self, time_to_go=3.0):
         self.move_to(self.rest_pos, self.rest_quat, time_to_go)
         self.open_gripper()
 
@@ -125,7 +125,9 @@ class ManipulatorSystem:
 
         pos_actual, quat_actual = self.arm.get_ee_pose()
         # print(f'Actual pose: {pos_actual}, {quat_actual}')
-        print(f'Pose error: {pos_actual - pos}, {quat_actual - quat}')
+        pos_err = [round(p, 3) for p in (pos_actual - pos).tolist()]
+        quat_err = [round(q, 3) for q in (quat_actual - quat).tolist()]
+        print(f'\tpose error: {pos_err}, {quat_err}')
 
 
     def close_gripper(self, grasp_width, blocking=True):
@@ -151,7 +153,7 @@ class ManipulatorSystem:
         x, y, rz = grasp_pose
         pos = torch.Tensor([x, y, z])
         quat = (
-            R.from_rotvec(torch.Tensor([0, 0, rz])) * R.from_quat(self.rest_quat)
+            R.from_rotvec(torch.Tensor([0, 0, rz])) * R.from_quat(torch.Tensor([1, 0, 0, 0]))
         ).as_quat()
 
         return pos, quat
@@ -197,12 +199,10 @@ class ManipulatorSystem:
         grasp_pose = self.grasp_pose_to_pos_quat(grasp_params, grasp_h)
         
         print("Pregrasp:")
-        self.set_policy(self.gain_dict['low']['Kx'], self.gain_dict['low']['Kxd'])
         self.move_to(*pregrasp_pose)
 
         # Lower (slower than other motions to prevent sudden collisions)
         print("Grasp:")
-        self.set_policy(self.gain_dict['high']['Kx'], self.gain_dict['high']['Kxd'])
         self.move_to(*grasp_pose)
 
         self.signal_pub.publish(UInt8(1))
@@ -217,7 +217,6 @@ class ManipulatorSystem:
         self.signal_pub.publish(UInt8(0))
 
         print("Back to pregrasp:")
-        self.set_policy(self.gain_dict['low']['Kx'], self.gain_dict['low']['Kxd'])
         self.move_to(*pregrasp_pose)
 
 
@@ -231,12 +230,13 @@ class ManipulatorSystem:
         else:
             self.close_gripper(grasp_width + 0.04, blocking=False)
 
-        prep_pose = self.grasp_pose_to_pos_quat((mid_point[0], mid_point[1], grasp_params[2]), pregrasp_h)
-        self.set_policy(self.gain_dict['high']['Kx'], self.gain_dict['high']['Kxd'])
+        self.move_to(*self.rest_pose)
+
+        prep_pose = self.grasp_pose_to_pos_quat((self.rest_pos[0], self.rest_pos[1], grasp_params[2]), pregrasp_h)
         self.move_to(*prep_pose)
 
         # Move to an idle pose before pregrasp
-        print("Get ready for pregrasp:")
+        print("=> align two axes:")
         if loc == 'front':
             prepregrasp_pose = self.grasp_pose_to_pos_quat((grasp_params[0] - 0.1, grasp_params[1], grasp_params[2]), pregrasp_h)
         elif loc == 'left':
@@ -245,19 +245,16 @@ class ManipulatorSystem:
             prepregrasp_pose = self.grasp_pose_to_pos_quat((grasp_params[0], grasp_params[1] + 0.1, grasp_params[2]), pregrasp_h)
         else:
             raise NotImplementedError
-        self.set_policy(self.gain_dict['high']['Kx'], self.gain_dict['high']['Kxd'])
         self.move_to(*prepregrasp_pose)
 
         # Move to pregrasp
-        print("Pregrasp:")
+        print("=> move to pregrasp:")
         pregrasp_pose = self.grasp_pose_to_pos_quat(grasp_params, pregrasp_h)
-        self.set_policy(self.gain_dict['high']['Kx'], self.gain_dict['high']['Kxd'])
         self.move_to(*pregrasp_pose)
 
         # Lower (slower than other motions to prevent sudden collisions)
-        print("Grasp:")
+        print("=> grasp:")
         grasp_pose = self.grasp_pose_to_pos_quat(grasp_params, grasp_h)
-        self.set_policy(self.gain_dict['high']['Kx'], self.gain_dict['high']['Kxd'])
         self.move_to(*grasp_pose)
 
         # Grasp
@@ -265,13 +262,12 @@ class ManipulatorSystem:
             self.close_gripper(grasp_width, blocking=False)
 
         # Lift the tool
-        print("Lift the tool:")
+        print("=> lift the tool:")
         lift_pose = self.grasp_pose_to_pos_quat(grasp_params, lift_h)
-        self.set_policy(self.gain_dict['high']['Kx'], self.gain_dict['high']['Kxd'])
         self.move_to(*lift_pose)
         
         # grasp the tool from the shelf
-        print("Take away the tool:")
+        print("=> take away the tool:")
         if loc == 'front':
             idle_pose = self.grasp_pose_to_pos_quat((grasp_params[0] - 0.1, grasp_params[1], grasp_params[2]), lift_h)
         elif loc == 'left':
@@ -280,25 +276,26 @@ class ManipulatorSystem:
             idle_pose = self.grasp_pose_to_pos_quat((grasp_params[0], grasp_params[1] + 0.1, grasp_params[2]), lift_h)
         else:
             raise NotImplementedError
-        self.set_policy(self.gain_dict['high']['Kx'], self.gain_dict['high']['Kxd'])
         self.move_to(*idle_pose)
 
-        print("Back to prep pose:")
-        prep_pose = self.grasp_pose_to_pos_quat((mid_point[0], mid_point[1], grasp_params[2]), pregrasp_h)
-        self.set_policy(self.gain_dict['low']['Kx'], self.gain_dict['low']['Kxd'])
+        print("=> move back to prep pose:")
+        prep_pose = self.grasp_pose_to_pos_quat((self.rest_pos[0], self.rest_pos[1], grasp_params[2]), pregrasp_h)
         self.move_to(*prep_pose)
+
+        self.move_to(*self.rest_pose)
 
 
     def put_back(self, grasp_params, grasp_h, pregrasp_dh, lift_dh=0.1, loc='front'):
         pregrasp_h = grasp_h + pregrasp_dh
         lift_h = grasp_h + pregrasp_dh + lift_dh
 
-        prep_pose = self.grasp_pose_to_pos_quat((mid_point[0], mid_point[1], grasp_params[2]), pregrasp_h)
-        self.set_policy(self.gain_dict['low']['Kx'], self.gain_dict['low']['Kxd'])
+        self.move_to(*self.rest_pose)
+
+        prep_pose = self.grasp_pose_to_pos_quat((self.rest_pos[0], self.rest_pos[1], grasp_params[2]), pregrasp_h)
         self.move_to(*prep_pose)
 
         # Get to the insert position
-        print("Get to the insert position:")
+        print("=> get to the insert position:")
         if loc == 'front':
             preinsert_pose = self.grasp_pose_to_pos_quat((grasp_params[0] - 0.1, grasp_params[1], grasp_params[2]), pregrasp_h)
         elif loc == 'left':
@@ -307,60 +304,57 @@ class ManipulatorSystem:
             preinsert_pose = self.grasp_pose_to_pos_quat((grasp_params[0], grasp_params[1] + 0.1, grasp_params[2]), pregrasp_h)
         else:
             raise NotImplementedError
-        self.set_policy(self.gain_dict['high']['Kx'], self.gain_dict['high']['Kxd'])
         self.move_to(*preinsert_pose)
 
-        print("Insert:")
+        print("=> insert:")
         insert_pose = self.grasp_pose_to_pos_quat(grasp_params, pregrasp_h)
-        self.set_policy(self.gain_dict['high']['Kx'], self.gain_dict['high']['Kxd'])
         self.move_to(*insert_pose)
 
         # Release
         self.open_gripper()
 
         # Move to pregrasp
-        print("Lift:")
+        print("=> lift:")
         lift_pose = self.grasp_pose_to_pos_quat(grasp_params, lift_h)
-        self.set_policy(self.gain_dict['high']['Kx'], self.gain_dict['high']['Kxd'])
         self.move_to(*lift_pose)
 
-        print("Back to prep pose:")
-        prep_pose = self.grasp_pose_to_pos_quat((mid_point[0], mid_point[1], grasp_params[2]), pregrasp_h)
-        self.set_policy(self.gain_dict['low']['Kx'], self.gain_dict['low']['Kxd'])
+        print("=> move back to prep pose:")
+        prep_pose = self.grasp_pose_to_pos_quat((self.rest_pos[0], self.rest_pos[1], grasp_params[2]), pregrasp_h)
         self.move_to(*prep_pose)
+
+        self.move_to(*self.rest_pose)
 
 
     def put_back_gripper(self, grasp_params, grasp_h, pregrasp_dh, lift_dh=0.1):
         pregrasp_h = grasp_h + pregrasp_dh
         lift_h = grasp_h + pregrasp_dh + lift_dh
 
-        prep_pose = self.grasp_pose_to_pos_quat((mid_point[0], mid_point[1], grasp_params[2]), pregrasp_h)
-        self.set_policy(self.gain_dict['low']['Kx'], self.gain_dict['low']['Kxd'])
+        self.move_to(*self.rest_pose)
+
+        prep_pose = self.grasp_pose_to_pos_quat((self.rest_pos[0], self.rest_pos[1], grasp_params[2]), pregrasp_h)
         self.move_to(*prep_pose)
 
-        self.close_gripper(0.06, blocking=False)
+        self.close_gripper(0.04, blocking=False)
 
         # Get to the put-down position
-        print("Get to the put-down position:")
+        print("=> get to the put-down position:")
         idle_pose = self.grasp_pose_to_pos_quat(grasp_params, pregrasp_h)
-        self.set_policy(self.gain_dict['high']['Kx'], self.gain_dict['high']['Kxd'])
         self.move_to(*idle_pose)
 
-        print("Put down:")
+        print("=> put down:")
         grasp_pose = self.grasp_pose_to_pos_quat(grasp_params, grasp_h)
-        self.set_policy(self.gain_dict['high']['Kx'], self.gain_dict['high']['Kxd'])
         self.move_to(*grasp_pose)
 
         # Release
         self.open_gripper()
 
         # Move to pregrasp
-        print("Lift:")
+        print("=> lift:")
         pregrasp_pose = self.grasp_pose_to_pos_quat(grasp_params, lift_h)
-        self.set_policy(self.gain_dict['high']['Kx'], self.gain_dict['high']['Kxd'])
         self.move_to(*pregrasp_pose)
 
-        print("Back to prep pose:")
-        prep_pose = self.grasp_pose_to_pos_quat((mid_point[0], mid_point[1], grasp_params[2]), pregrasp_h)
-        self.set_policy(self.gain_dict['low']['Kx'], self.gain_dict['low']['Kxd'])
+        print("=> back to prep pose:")
+        prep_pose = self.grasp_pose_to_pos_quat((self.rest_pos[0], self.rest_pos[1], grasp_params[2]), pregrasp_h)
         self.move_to(*prep_pose)
+
+        self.move_to(*self.rest_pose)
