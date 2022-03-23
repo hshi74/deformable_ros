@@ -18,7 +18,7 @@ from std_msgs.msg import UInt8
 from timeit import default_timer as timer
 from transforms3d.quaternions import *
 
-import manipulator
+import manipulate
 
 fixed_frame = 'panda_link0'
 task_name = 'ngrip_fixed_robot_1-19'
@@ -59,7 +59,7 @@ def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
             bag.write('/cam3/depth/color/points', cam3_msg)
             bag.write('/cam4/depth/color/points', cam4_msg)
 
-            gripper_1_pose, gripper_2_pose = manipulator.robot.get_gripper_pose()
+            gripper_1_pose, gripper_2_pose = manipulate.robot.get_gripper_pose()
             bag.write('/gripper_1_pose', gripper_1_pose)
             bag.write('/gripper_2_pose', gripper_2_pose)
 

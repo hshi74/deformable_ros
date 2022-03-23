@@ -6,11 +6,13 @@
 import copy
 import numpy as np
 import rospy
+import torch
 
 from timeit import default_timer as timer
+from torchcontrol.transform import Rotation as R
 from transforms3d.quaternions import *
 
-from manipulator import ManipulatorSystem
+from manipulate import ManipulatorSystem
 from sensor_msgs.msg import Joy
 
 robot = ManipulatorSystem()
@@ -30,15 +32,18 @@ tool_status = {
 }
 
 rest_pos = copy.deepcopy(robot.rest_pos)
-pose_params = [rest_pos[0], rest_pos[1], np.pi / 4]
-pose_h = rest_pos[2]
+pos_curr = [*rest_pos]
+rot_curr = [0.0, 0.0, np.pi / 4]
+
 init_pos_stride = 0.02
 init_rot_stride = np.pi / 16
+init_width_stride = 0.01
 manipulating = False
 
+# NEED TO initialize LT and RT before controllng with joystick
 def joy_callback(msg):
-    global pose_params
-    global pose_h
+    global pos_curr
+    global rot_curr
     global manipulating
 
     # LB, RB, button 1, button 2, LT & LB
@@ -93,69 +98,91 @@ def joy_callback(msg):
         # B
         if msg.buttons[1]:
             print(f"========== moving +x ==========")
-            pose_params[0] += pos_stride
+            pos_curr[0] += pos_stride
         # X
         if msg.buttons[2]:
             print(f"========== moving -x ==========")
-            pose_params[0] -= pos_stride
+            pos_curr[0] -= pos_stride
         # Y
         if msg.buttons[3]:
             print(f"========== moving +y ==========")
-            pose_params[1] += pos_stride
+            pos_curr[1] += pos_stride
         # A
         if msg.buttons[0]:
             print(f"========== moving -y ==========")
-            pose_params[1] -= pos_stride
-        # left / right
-        if msg.axes[6]:
-            print(f"========== rotating on z ==========")
-            pose_params[2] += msg.axes[6] / abs(msg.axes[6]) * init_rot_stride
-            if pose_params[2] > np.pi / 2:
-                pose_params[2] -= np.pi
-            elif pose_params[2] < -np.pi / 2:
-                pose_params[2] += np.pi
+            pos_curr[1] -= pos_stride
         # up / down
         if msg.axes[7]:
-            print(f"========== moving on z ==========")
-            pose_h += msg.axes[7] / abs(msg.axes[7]) * pos_stride
+            print(f"========== moving on {'+' if msg.axes[7] > 0 else '-'}z ==========")
+            pos_curr[2] += msg.axes[7] / abs(msg.axes[7]) * pos_stride
+        
+        # left / right
+        if msg.axes[6]:
+            if msg.axes[2] == 1.0 and msg.axes[5] == 1.0:
+                print(f"========== rotating on z ==========")
+                rot_axis = 2 # z
+                rot_stride = init_rot_stride
+            elif msg.axes[2] == -1.0 and msg.axes[5] == 1.0:
+                print(f"========== rotating on x ==========")
+                rot_axis = 0 # x
+                rot_stride = init_rot_stride
+            elif msg.axes[2] == 1.0 and msg.axes[5] == -1.0:
+                print(f"========== rotating on y ==========") 
+                rot_axis = 1 # y
+                rot_stride = init_rot_stride / 4
 
-        pose_params = np.clip(pose_params, robot_bbox[0],  robot_bbox[1])
-        print(f'pose_params: {pose_params}; pose_h: {pose_h}')
+            rot_curr[rot_axis] += msg.axes[6] / abs(msg.axes[6]) * rot_stride
+            if rot_curr[rot_axis] > np.pi / 2:
+                rot_curr[rot_axis] -= np.pi
+            elif rot_curr[rot_axis] < -np.pi / 2:
+                rot_curr[rot_axis] += np.pi
+
+        pos_curr = np.clip(pos_curr, robot_bbox[0], robot_bbox[1])
+        print(f'pos_curr: {pos_curr}; rot_curr: {rot_curr}')
 
         if manipulating:
             time_to_go = 3.0
         else:
             time_to_go = 0.5
 
-        pose_goal = robot.grasp_pose_to_pos_quat(pose_params, pose_h)
-        robot.move_to(*pose_goal, time_to_go=time_to_go)
+        pos_goal = torch.Tensor(pos_curr)
+        rot_goal = (
+            R.from_rotvec(torch.Tensor(rot_curr)) * R.from_quat(torch.Tensor([1, 0, 0, 0]))
+        ).as_quat()
+        robot.move_to(pos_goal, rot_goal, time_to_go=time_to_go)
 
     elif msg.buttons[6] or msg.buttons[7]:
+        width_cur = robot.gripper.get_state().width
         # button 1
         if msg.buttons[6]:
             robot.open_gripper()
         # button 3
         if msg.buttons[7]:
-            for k, v in tool_status.items():
-                if v == 'using':
-                    if k == 'gripper':
-                        width = 0.007
-                    else:
-                        width = 0.015
-                    break
+            # for k, v in tool_status.items():
+            #     if v == 'using':
+            #         if k == 'gripper':
+            #             width = 0.007
+            #         else:
+            #             width = 0.015
+            #         break
 
-            robot.close_gripper(width, blocking=False)
+            # customized grasp_speed and grasp_force
+            width = width_cur - init_width_stride
+            if width >= 0.0:
+                robot.close_gripper(width, blocking=False, grasp_params=(0.01, 50.0))
 
     elif msg.axes[0]:
+        print("========== start manipulating... ==========")
         manipulating = True
 
     elif msg.axes[3]:
+        print("========== end manipulating... ==========")
         manipulating = False
 
 
 def take_away(tool):
     if tool == 'gripper':
-        robot.take_away(grasp_params=(0.415, 0.27, np.pi / 4), grasp_h=0.31, pregrasp_dh=0.01, grasp_width=0.015, lift_dh=0.1, loc='left')
+        robot.take_away(grasp_params=(0.415, 0.27, np.pi / 4), grasp_h=0.32, pregrasp_dh=0.01, grasp_width=0.015, lift_dh=0.1, loc='left')
     elif tool == 'roller':
         robot.take_away(grasp_params=(0.62, 0.19, -np.pi / 4), grasp_h=0.32, pregrasp_dh=0.01, grasp_width=0.015)
     elif tool == 'planar_cutter':

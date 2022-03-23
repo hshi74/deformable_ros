@@ -130,8 +130,11 @@ class ManipulatorSystem:
         print(f'\tpose error: {pos_err}, {quat_err}')
 
 
-    def close_gripper(self, grasp_width, blocking=True):
-        self.gripper.goto(width=grasp_width, speed=grasp_speed, force=grasp_force, blocking=blocking)
+    def close_gripper(self, grasp_width, blocking=True, grasp_params=None):
+        if grasp_params:
+            self.gripper.goto(width=grasp_width, speed=grasp_params[0], force=grasp_params[1], blocking=blocking)
+        else:
+            self.gripper.goto(width=grasp_width, speed=grasp_speed, force=grasp_force, blocking=blocking)
         time.sleep(0.2)
 
         # Check state
