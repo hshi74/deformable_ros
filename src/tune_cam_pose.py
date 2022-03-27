@@ -56,8 +56,8 @@ def main():
     static_br.sendTransform(static_ts_list)
 
     cam_idx = tune_idx
-    cam_pos_world = camera_pose_dict[f"cam_{cam_idx}"]["position"]
-    cam_ori_world = camera_pose_dict[f"cam_{cam_idx}"]["orientation"]
+    cam_pos_cur = camera_pose_dict[f"cam_{cam_idx}"]["position"]
+    cam_ori_init = camera_pose_dict[f"cam_{cam_idx}"]["orientation"]
     pcd_rot_vec = [0.0, 0.0, 0.0]
     
     br = tf.TransformBroadcaster()
@@ -66,17 +66,17 @@ def main():
     while not rospy.is_shutdown():
         key = readchar.readkey()
         if key == 'w':
-            cam_pos_world[0] += pos_stride
+            cam_pos_cur[0] += pos_stride
         elif key == 'x':
-            cam_pos_world[0] -= pos_stride
+            cam_pos_cur[0] -= pos_stride
         elif key == 'a':
-            cam_pos_world[1] += pos_stride
+            cam_pos_cur[1] += pos_stride
         elif key == 'd':
-            cam_pos_world[1] -= pos_stride
+            cam_pos_cur[1] -= pos_stride
         elif key == 'q':
-            cam_pos_world[2] += pos_stride
+            cam_pos_cur[2] += pos_stride
         elif key == 'z':
-            cam_pos_world[2] -= pos_stride
+            cam_pos_cur[2] -= pos_stride
         elif key == '1':
             pcd_rot_vec[0] += rot_stride
         elif key == '2':
@@ -101,19 +101,19 @@ def main():
             axangle2quat([0, 0, 1], pcd_rot_vec[2])), 
             [1.0, 0.0, 0.0, 0.0])
 
-        cam_ori_world = qmult(pcd_ori_world, cam_ori_world)
-        cam_ori_world = [float(x) for x in cam_ori_world]
-        print(f"Pos: {cam_pos_world}\nOri: {cam_ori_world}")
-        br.sendTransform(tuple(cam_pos_world),
-            tuple([cam_ori_world[1], cam_ori_world[2], cam_ori_world[3], cam_ori_world[0]]), 
+        cam_ori_cur = qmult(pcd_ori_world, cam_ori_init)
+        cam_ori_cur = [float(x) for x in cam_ori_cur]
+        print(f"Pos: {cam_pos_cur}\nOri: {cam_ori_cur}")
+        br.sendTransform(tuple(cam_pos_cur),
+            tuple([cam_ori_cur[1], cam_ori_cur[2], cam_ori_cur[3], cam_ori_cur[0]]), 
             rospy.Time.now(), f"cam{cam_idx}_link", fixed_frame)
         
         rate.sleep()
 
     if save:
-        print(f"Final pos: {cam_pos_world}\nFinal ori: {cam_ori_world}")
-        camera_pose_dict[f"cam_{cam_idx}"]["position"] = cam_pos_world
-        camera_pose_dict[f"cam_{cam_idx}"]["orientation"] = cam_ori_world
+        print(f"Final pos: {cam_pos_cur}\nFinal ori: {cam_ori_cur}")
+        camera_pose_dict[f"cam_{cam_idx}"]["position"] = cam_pos_cur
+        camera_pose_dict[f"cam_{cam_idx}"]["orientation"] = cam_ori_cur
         with open(os.path.join(data_dir, 'camera_pose_world.yml'), 'w') as f:
             yaml.dump(camera_pose_dict, f)
 

@@ -28,7 +28,7 @@ tool_status = {
     'roller': 'ready', 
     'planar_cutter': 'ready', 
     'circular_cutter': 'ready',
-    'stamp': 'ready',
+    'shovel': 'ready',
 }
 
 rest_pos = copy.deepcopy(robot.rest_pos)
@@ -62,7 +62,7 @@ def joy_callback(msg):
 
         if msg.buttons[5]:
             if msg.axes[2] == 1.0 and msg.axes[5] == 1.0:
-                tool = 'stamp'
+                tool = 'shovel'
             else:
                 raise NotImplementedError
 
@@ -80,6 +80,10 @@ def joy_callback(msg):
             put_back(tool)
             tool_status[tool] = 'ready'
 
+        # reset the pose
+        pos_curr = [*rest_pos]
+        rot_curr = [0.0, 0.0, np.pi / 4]
+
     elif 1 in msg.buttons[:4] or msg.axes[6] or msg.axes[7]:
         # pos_goal, quat_goal = robot.grasp_pose_to_pos_quat(pose_params, pose_h)
         pos_actual, quat_actual = robot.arm.get_ee_pose()
@@ -94,6 +98,11 @@ def joy_callback(msg):
         ub_ratio = np.min((pos_actual.numpy() - robot_bbox[1]) / (robot.rest_pos.numpy() - robot_bbox[1]))
         pos_stride = min(lb_ratio, ub_ratio) * init_pos_stride
         # print(f"lower: {lb_ratio}; upper: {ub_ratio}; stride: {pos_stride}")
+
+        if manipulating:
+            time_to_go = 3.0
+        else:
+            time_to_go = 0.5
 
         # B
         if msg.buttons[1]:
@@ -134,16 +143,13 @@ def joy_callback(msg):
             rot_curr[rot_axis] += msg.axes[6] / abs(msg.axes[6]) * rot_stride
             if rot_curr[rot_axis] > np.pi / 2:
                 rot_curr[rot_axis] -= np.pi
+                time_to_go = 3.0
             elif rot_curr[rot_axis] < -np.pi / 2:
                 rot_curr[rot_axis] += np.pi
+                time_to_go = 3.0
 
         pos_curr = np.clip(pos_curr, robot_bbox[0], robot_bbox[1])
         print(f'pos_curr: {pos_curr}; rot_curr: {rot_curr}')
-
-        if manipulating:
-            time_to_go = 3.0
-        else:
-            time_to_go = 0.5
 
         pos_goal = torch.Tensor(pos_curr)
         rot_goal = (
@@ -182,29 +188,29 @@ def joy_callback(msg):
 
 def take_away(tool):
     if tool == 'gripper':
-        robot.take_away(grasp_params=(0.415, 0.27, np.pi / 4), grasp_h=0.32, pregrasp_dh=0.01, grasp_width=0.015, lift_dh=0.1, loc='left')
+        robot.take_away(grasp_params=(0.415, 0.27, np.pi / 4), grasp_h=0.315, pregrasp_dh=0.01, grasp_width=0.01, lift_dh=0.1, loc='left')
     elif tool == 'roller':
-        robot.take_away(grasp_params=(0.62, 0.19, -np.pi / 4), grasp_h=0.32, pregrasp_dh=0.01, grasp_width=0.015)
+        robot.take_away(grasp_params=(0.62, 0.19, -np.pi / 4), grasp_h=0.325, pregrasp_dh=0.01, grasp_width=0.015)
     elif tool == 'planar_cutter':
-        robot.take_away(grasp_params=(0.62, 0.065, -np.pi / 4), grasp_h=0.32, pregrasp_dh=0.01, grasp_width=0.015)
+        robot.take_away(grasp_params=(0.62, 0.065, -np.pi / 4), grasp_h=0.325, pregrasp_dh=0.01, grasp_width=0.015)
     elif tool == 'circular_cutter':
-        robot.take_away(grasp_params=(0.62, -0.1, -np.pi / 4), grasp_h=0.32, pregrasp_dh=0.01, grasp_width=0.015)
-    elif tool == 'stamp':
-        robot.take_away(grasp_params=(0.62, -0.225, -np.pi / 4), grasp_h=0.32, pregrasp_dh=0.01, grasp_width=0.015)
+        robot.take_away(grasp_params=(0.62, -0.1, -np.pi / 4), grasp_h=0.325, pregrasp_dh=0.01, grasp_width=0.015)
+    elif tool == 'shovel':
+        robot.take_away(grasp_params=(0.62, -0.225, -np.pi / 4), grasp_h=0.325, pregrasp_dh=0.01, grasp_width=0.015)
     else:
         raise NotImplementedError
 
 
 def put_back(tool):
     if tool == 'gripper':
-        robot.put_back_gripper(grasp_params=(0.415, 0.26, np.pi / 4), grasp_h=0.31, pregrasp_dh=0.05)
+        robot.put_back_gripper(grasp_params=(0.415, 0.26, np.pi / 4), grasp_h=0.315, pregrasp_dh=0.05)
     elif tool == 'roller':
         robot.put_back(grasp_params=(0.615, 0.19, -np.pi / 4), grasp_h=0.32, pregrasp_dh=0.015)
     elif tool == 'planar_cutter':
         robot.put_back(grasp_params=(0.615, 0.065, -np.pi / 4), grasp_h=0.32, pregrasp_dh=0.015)
     elif tool == 'circular_cutter':
         robot.put_back(grasp_params=(0.615, -0.1, -np.pi / 4), grasp_h=0.32, pregrasp_dh=0.015)
-    elif tool == 'stamp':
+    elif tool == 'shovel':
         robot.put_back(grasp_params=(0.615, -0.225, -np.pi / 4), grasp_h=0.32, pregrasp_dh=0.015)
     else:
         raise NotImplementedError
