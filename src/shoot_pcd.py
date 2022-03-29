@@ -20,6 +20,8 @@ from transforms3d.quaternions import *
 
 import manipulate
 
+robot = manipulate.ManipulatorSystem()
+
 fixed_frame = 'panda_link0'
 task_name = 'cutting_pre_3-26'
 num_cams = 4
@@ -56,20 +58,27 @@ def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
         time_now = cam1_msg.header.stamp.to_sec() - time_start
         # print(time_now - time_last)
         if time_now == 0.0 or time_now - time_last > 0.1:
-            bag = rosbag.Bag(os.path.join(data_path, str(trial).zfill(3), f'{time_now:.3f}.bag'), 'w')
+            trial_path = os.path.join(data_path, str(trial).zfill(3))
+            os.system('mkdir -p ' + f"{trial_path}")
+            bag = rosbag.Bag(os.path.join(trial_path, f'{time_now:.3f}.bag'), 'w')
             bag.write('/cam1/depth/color/points', cam1_msg)
             bag.write('/cam2/depth/color/points', cam2_msg)
             bag.write('/cam3/depth/color/points', cam3_msg)
             bag.write('/cam4/depth/color/points', cam4_msg)
 
-            # gripper_1_pose, gripper_2_pose = manipulate.robot.get_gripper_pose()
-            # bag.write('/gripper_1_pose', gripper_1_pose)
-            # bag.write('/gripper_2_pose', gripper_2_pose)
+            ee_pose = robot.get_ee_pose()
+            bag.write('/ee_pose', ee_pose)
 
             bag.close()
 
+            print(f"Trial {trial}: recorded pcd at {time_now}...")
             time_last = time_now
-            trial += 1
+
+    if signal == 0 and time_start > 0:
+        time_start = 0.0
+        time_last = 0.0
+        time_now = 0.0
+        trial += 1
 
 
 def main():
@@ -113,16 +122,7 @@ def main():
     # br = tf.TransformBroadcaster()
     rate = rospy.Rate(100)
     while not rospy.is_shutdown():
-        # for cam_idx in range(1, num_cams + 1):
-        #     cam_pose_world = cam_pose_dict[f"cam_{cam_idx}"]
-        #     cam_pos_world = cam_pose_world[:3]
-        #     cam_ori_world = cam_pose_world[3:]
-        #     # print(cam_pos_world, cam_ori_world)
-        #     br.sendTransform(tuple(cam_pos_world), tuple(cam_ori_world), rospy.Time.now(), f"cam{cam_idx}_link", fixed_frame)
-
-        # STOP
         if signal == 2: break
-        
         rate.sleep()
 
 

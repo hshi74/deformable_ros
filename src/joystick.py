@@ -23,13 +23,7 @@ robot_bbox = [
     np.array([0.7, 0.3, 0.65])
 ]
 
-tool_status = {
-    'gripper': 'ready', 
-    'roller': 'ready', 
-    'planar_cutter': 'ready', 
-    'circular_cutter': 'ready',
-    'shovel': 'ready',
-}
+
 
 rest_pos = copy.deepcopy(robot.rest_pos)
 pos_curr = [*rest_pos]
@@ -66,19 +60,19 @@ def joy_callback(msg):
             else:
                 raise NotImplementedError
 
-        if tool_status[tool] == 'ready':
-            for k, v in tool_status.items():
+        if robot.tool_status[tool] == 'ready':
+            for k, v in robot.tool_status.items():
                 if k != tool and v == 'using':
                     print(f"Could not take {tool} while using {k}!")
                     return
             
             print(f"========== taking away {tool} ==========")
-            take_away(tool)
-            tool_status[tool] = 'using'
+            robot.take_away_tool(tool)
+            robot.tool_status[tool] = 'using'
         else:
             print(f"========== putting back {tool} ==========")
-            put_back(tool)
-            tool_status[tool] = 'ready'
+            robot.put_back_tool(tool)
+            robot.tool_status[tool] = 'ready'
 
         # reset the pose
         pos_curr = [*rest_pos]
@@ -151,10 +145,7 @@ def joy_callback(msg):
         pos_curr = np.clip(pos_curr, robot_bbox[0], robot_bbox[1])
         print(f'pos_curr: {pos_curr}; rot_curr: {rot_curr}')
 
-        pos_goal = torch.Tensor(pos_curr)
-        rot_goal = (
-            R.from_rotvec(torch.Tensor(rot_curr)) * R.from_quat(torch.Tensor([1, 0, 0, 0]))
-        ).as_quat()
+        pos_goal, rot_goal = robot.pos_rot_to_pose(pos_curr, rot_curr)
         robot.move_to(pos_goal, rot_goal, time_to_go=time_to_go)
 
     elif msg.buttons[6] or msg.buttons[7]:
@@ -164,7 +155,7 @@ def joy_callback(msg):
             robot.open_gripper()
         # button 3
         if msg.buttons[7]:
-            # for k, v in tool_status.items():
+            # for k, v in robot.tool_status.items():
             #     if v == 'using':
             #         if k == 'gripper':
             #             width = 0.007
@@ -184,36 +175,6 @@ def joy_callback(msg):
     elif msg.axes[3]:
         print("========== end manipulating... ==========")
         manipulating = False
-
-
-def take_away(tool):
-    if tool == 'gripper':
-        robot.take_away(grasp_params=(0.415, 0.27, np.pi / 4), grasp_h=0.315, pregrasp_dh=0.01, grasp_width=0.01, lift_dh=0.1, loc='left')
-    elif tool == 'roller':
-        robot.take_away(grasp_params=(0.62, 0.19, -np.pi / 4), grasp_h=0.325, pregrasp_dh=0.01, grasp_width=0.015)
-    elif tool == 'planar_cutter':
-        robot.take_away(grasp_params=(0.62, 0.065, -np.pi / 4), grasp_h=0.325, pregrasp_dh=0.01, grasp_width=0.015)
-    elif tool == 'circular_cutter':
-        robot.take_away(grasp_params=(0.62, -0.1, -np.pi / 4), grasp_h=0.325, pregrasp_dh=0.01, grasp_width=0.015)
-    elif tool == 'shovel':
-        robot.take_away(grasp_params=(0.62, -0.225, -np.pi / 4), grasp_h=0.325, pregrasp_dh=0.01, grasp_width=0.015)
-    else:
-        raise NotImplementedError
-
-
-def put_back(tool):
-    if tool == 'gripper':
-        robot.put_back_gripper(grasp_params=(0.415, 0.26, np.pi / 4), grasp_h=0.315, pregrasp_dh=0.05)
-    elif tool == 'roller':
-        robot.put_back(grasp_params=(0.615, 0.19, -np.pi / 4), grasp_h=0.32, pregrasp_dh=0.015)
-    elif tool == 'planar_cutter':
-        robot.put_back(grasp_params=(0.615, 0.065, -np.pi / 4), grasp_h=0.32, pregrasp_dh=0.015)
-    elif tool == 'circular_cutter':
-        robot.put_back(grasp_params=(0.615, -0.1, -np.pi / 4), grasp_h=0.32, pregrasp_dh=0.015)
-    elif tool == 'shovel':
-        robot.put_back(grasp_params=(0.615, -0.225, -np.pi / 4), grasp_h=0.32, pregrasp_dh=0.015)
-    else:
-        raise NotImplementedError
 
 
 # Initialize interfaces

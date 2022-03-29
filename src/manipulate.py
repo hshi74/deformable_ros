@@ -61,9 +61,19 @@ class ManipulatorSystem:
         self.signal_pub = rospy.Publisher('/signal', UInt8, queue_size=10)
 
         # Reset to rest pose
-        self.rest_pose = self.grasp_pose_to_pos_quat((0.4, 0.0, np.pi / 4), 0.35)
+        self.rest_pose = self.pos_rz_to_pose((0.4, 0.0, np.pi / 4), 0.35)
         self.rest_pos = self.rest_pose[0]
         self.rest_quat = self.rest_pose[1]
+
+        self.tool_status = {
+            'circular_cutter': 'ready',
+            'gripper': 'ready',
+            'hook': 'ready',
+            'planar_cutter': 'ready',
+            'roller': 'ready',
+            'shovel': 'ready',
+            'stamp': 'ready',
+        }
 
         # self.reset()
 
@@ -152,7 +162,7 @@ class ManipulatorSystem:
         assert state.width > 0.0
 
 
-    def grasp_pose_to_pos_quat(self, grasp_pose, z):
+    def pos_rz_to_pose(self, grasp_pose, z):
         x, y, rz = grasp_pose
         pos = torch.Tensor([x, y, z])
         quat = (
@@ -160,6 +170,36 @@ class ManipulatorSystem:
         ).as_quat()
 
         return pos, quat
+
+
+    def pos_rot_to_pose(self, pos, rot):
+        pos = torch.Tensor(pos)
+        quat = (
+            R.from_rotvec(torch.Tensor(rot)) * R.from_quat(torch.Tensor([1, 0, 0, 0]))
+        ).as_quat()
+
+        return pos, quat
+
+
+    def get_ee_pose(self):
+        ee_pos, ee_quat = self.arm.pose_ee()
+        ee_ori = np.array([ee_quat[3], ee_quat[0], ee_quat[1], ee_quat[2]])
+        gripper_width = self.gripper.get_state().width
+        # print(f"Current ee position: {ee_pos}")
+        # print(f"Current ee orientation: {ee_ori}  (wxyz)")
+        # print(f"Current gripper width: {gripper_width}")
+
+        ee_pose = Pose()
+        ee_pose.position.x = ee_pos[0]
+        ee_pose.position.y = ee_pos[1]
+        ee_pose.position.z = ee_pos[2]
+
+        ee_pose.orientation.w = ee_ori[0]
+        ee_pose.orientation.x = ee_ori[1]
+        ee_pose.orientation.y = ee_ori[2]
+        ee_pose.orientation.z = ee_ori[3]
+
+        return ee_pose
 
 
     def get_gripper_pose(self):
@@ -196,10 +236,207 @@ class ManipulatorSystem:
         return gripper_poses
 
 
+    def take_away_tool(self, tool):
+        if tool == 'gripper':
+            self.take_away(grasp_params=(0.415, 0.27, np.pi / 4), grasp_h=0.315, pregrasp_dh=0.01, grasp_width=0.01, lift_dh=0.1, loc='left')
+        elif tool == 'roller':
+            self.take_away(grasp_params=(0.62, 0.19, -np.pi / 4), grasp_h=0.325, pregrasp_dh=0.01, grasp_width=0.015)
+        elif tool == 'planar_cutter':
+            self.take_away(grasp_params=(0.62, 0.065, -np.pi / 4), grasp_h=0.325, pregrasp_dh=0.01, grasp_width=0.015)
+        elif tool == 'circular_cutter':
+            self.take_away(grasp_params=(0.62, -0.1, -np.pi / 4), grasp_h=0.325, pregrasp_dh=0.01, grasp_width=0.015)
+        elif tool == 'shovel':
+            self.take_away(grasp_params=(0.62, -0.225, -np.pi / 4), grasp_h=0.325, pregrasp_dh=0.01, grasp_width=0.015)
+        else:
+            raise NotImplementedError
+
+
+    def put_back_tool(self, tool):
+        if tool == 'gripper':
+            self.put_back_gripper(grasp_params=(0.415, 0.26, np.pi / 4), grasp_h=0.315, pregrasp_dh=0.05)
+        elif tool == 'roller':
+            self.put_back(grasp_params=(0.615, 0.19, -np.pi / 4), grasp_h=0.32, pregrasp_dh=0.015)
+        elif tool == 'planar_cutter':
+            self.put_back(grasp_params=(0.615, 0.065, -np.pi / 4), grasp_h=0.32, pregrasp_dh=0.015)
+        elif tool == 'circular_cutter':
+            self.put_back(grasp_params=(0.615, -0.1, -np.pi / 4), grasp_h=0.32, pregrasp_dh=0.015)
+        elif tool == 'shovel':
+            self.put_back(grasp_params=(0.615, -0.225, -np.pi / 4), grasp_h=0.32, pregrasp_dh=0.015)
+        else:
+            raise NotImplementedError
+
+
+    def take_away(self, grasp_params, grasp_h, pregrasp_dh, grasp_width, lift_dh=0.01, loc='front', debug=False):
+        pregrasp_h = grasp_h + pregrasp_dh
+        lift_h = grasp_h + pregrasp_dh + lift_dh
+
+        # hard code to account for taking away the gripper
+        if loc == 'left':
+            self.open_gripper()
+        else:
+            self.close_gripper(grasp_width + 0.04, blocking=False)
+
+        self.move_to(*self.rest_pose)
+
+        prep_pose = self.pos_rz_to_pose((self.rest_pos[0], self.rest_pos[1], grasp_params[2]), pregrasp_h)
+        self.move_to(*prep_pose)
+
+        # Move to an idle pose before pregrasp
+        print("=> align two axes:")
+        if loc == 'front':
+            prepregrasp_pose = self.pos_rz_to_pose((grasp_params[0] - 0.1, grasp_params[1], grasp_params[2]), pregrasp_h)
+        elif loc == 'left':
+            prepregrasp_pose = self.pos_rz_to_pose((grasp_params[0], grasp_params[1] - 0.1, grasp_params[2]), pregrasp_h)
+        elif loc == 'right':
+            prepregrasp_pose = self.pos_rz_to_pose((grasp_params[0], grasp_params[1] + 0.1, grasp_params[2]), pregrasp_h)
+        else:
+            raise NotImplementedError
+        self.move_to(*prepregrasp_pose)
+
+        # Move to pregrasp
+        print("=> move to pregrasp:")
+        pregrasp_pose = self.pos_rz_to_pose(grasp_params, pregrasp_h)
+        self.move_to(*pregrasp_pose)
+
+        # Lower (slower than other motions to prevent sudden collisions)
+        print("=> grasp:")
+        grasp_pose = self.pos_rz_to_pose(grasp_params, grasp_h)
+        self.move_to(*grasp_pose)
+
+        # Grasp
+        if not debug:
+            self.close_gripper(grasp_width, blocking=False)
+
+        # Lift the tool
+        print("=> lift the tool:")
+        lift_pose = self.pos_rz_to_pose(grasp_params, lift_h)
+        self.move_to(*lift_pose)
+        
+        # grasp the tool from the shelf
+        print("=> take away the tool:")
+        if loc == 'front':
+            idle_pose = self.pos_rz_to_pose((grasp_params[0] - 0.1, grasp_params[1], grasp_params[2]), lift_h)
+        elif loc == 'left':
+            idle_pose = self.pos_rz_to_pose((grasp_params[0], grasp_params[1] - 0.1, grasp_params[2]), lift_h)
+        elif loc == 'right':
+            idle_pose = self.pos_rz_to_pose((grasp_params[0], grasp_params[1] + 0.1, grasp_params[2]), lift_h)
+        else:
+            raise NotImplementedError
+        self.move_to(*idle_pose)
+
+        print("=> move back to prep pose:")
+        prep_pose = self.pos_rz_to_pose((self.rest_pos[0], self.rest_pos[1], grasp_params[2]), pregrasp_h)
+        self.move_to(*prep_pose)
+
+        self.move_to(*self.rest_pose)
+
+
+    def put_back(self, grasp_params, grasp_h, pregrasp_dh, lift_dh=0.1, loc='front'):
+        pregrasp_h = grasp_h + pregrasp_dh
+        lift_h = grasp_h + pregrasp_dh + lift_dh
+
+        self.move_to(*self.rest_pose)
+
+        prep_pose = self.pos_rz_to_pose((self.rest_pos[0], self.rest_pos[1], grasp_params[2]), pregrasp_h)
+        self.move_to(*prep_pose)
+
+        # Get to the insert position
+        print("=> get to the insert position:")
+        if loc == 'front':
+            preinsert_pose = self.pos_rz_to_pose((grasp_params[0] - 0.1, grasp_params[1], grasp_params[2]), pregrasp_h)
+        elif loc == 'left':
+            preinsert_pose = self.pos_rz_to_pose((grasp_params[0], grasp_params[1] - 0.1, grasp_params[2]), pregrasp_h)
+        elif loc == 'right':
+            preinsert_pose = self.pos_rz_to_pose((grasp_params[0], grasp_params[1] + 0.1, grasp_params[2]), pregrasp_h)
+        else:
+            raise NotImplementedError
+        self.move_to(*preinsert_pose)
+
+        print("=> insert:")
+        insert_pose = self.pos_rz_to_pose(grasp_params, pregrasp_h)
+        self.move_to(*insert_pose)
+
+        # Release
+        self.open_gripper()
+
+        # Move to pregrasp
+        print("=> lift:")
+        lift_pose = self.pos_rz_to_pose(grasp_params, lift_h)
+        self.move_to(*lift_pose)
+
+        print("=> move back to prep pose:")
+        prep_pose = self.pos_rz_to_pose((self.rest_pos[0], self.rest_pos[1], grasp_params[2]), pregrasp_h)
+        self.move_to(*prep_pose)
+
+        self.move_to(*self.rest_pose)
+
+
+    def put_back_gripper(self, grasp_params, grasp_h, pregrasp_dh, lift_dh=0.1):
+        pregrasp_h = grasp_h + pregrasp_dh
+        lift_h = grasp_h + pregrasp_dh + lift_dh
+
+        self.move_to(*self.rest_pose)
+
+        prep_pose = self.pos_rz_to_pose((self.rest_pos[0], self.rest_pos[1], grasp_params[2]), pregrasp_h)
+        self.move_to(*prep_pose)
+
+        self.close_gripper(0.04, blocking=False)
+
+        # Get to the put-down position
+        print("=> get to the put-down position:")
+        idle_pose = self.pos_rz_to_pose(grasp_params, pregrasp_h)
+        self.move_to(*idle_pose)
+
+        print("=> put down:")
+        grasp_pose = self.pos_rz_to_pose(grasp_params, grasp_h)
+        self.move_to(*grasp_pose)
+
+        # Release
+        self.open_gripper()
+
+        # Move to pregrasp
+        print("=> lift:")
+        pregrasp_pose = self.pos_rz_to_pose(grasp_params, lift_h)
+        self.move_to(*pregrasp_pose)
+
+        print("=> back to prep pose:")
+        prep_pose = self.pos_rz_to_pose((self.rest_pos[0], self.rest_pos[1], grasp_params[2]), pregrasp_h)
+        self.move_to(*prep_pose)
+
+        self.move_to(*self.rest_pose)
+
+
+    def cut(self, cut_pos, cut_rot, precut_dh):
+        # Move to precut
+        print("=> precut:")
+        precut_pos = [cut_pos[0], cut_pos[1], cut_pos[2] + precut_dh]
+        precut_pose = self.pos_rot_to_pose(precut_pos, cut_rot)
+        self.move_to(*precut_pose)
+
+        self.signal_pub.publish(UInt8(1))
+        time.sleep(0.2)
+
+        # Cut
+        print("=> cut:")
+        cut_pose = self.pos_rot_to_pose(cut_pos, cut_rot)
+        self.move_to(*cut_pose)
+
+        # Cut
+        print("=> separate:")
+        separate_pos = [cut_pos[0], cut_pos[1] + 0.05, cut_pos[2]]
+        separate_pose = self.pos_rot_to_pose(separate_pos, cut_rot)
+        self.move_to(*separate_pose)
+
+        self.signal_pub.publish(UInt8(0))
+
+        print("=> back to precut:")
+        self.move_to(*precut_pose)
+
+
     def grasp(self, grasp_params, grasp_h, pregrasp_dh, grasp_width=0.0):
         # Move to pregrasp
-        pregrasp_pose = self.grasp_pose_to_pos_quat(grasp_params, grasp_h + pregrasp_dh)
-        grasp_pose = self.grasp_pose_to_pos_quat(grasp_params, grasp_h)
+        pregrasp_pose = self.pos_rz_to_pose(grasp_params, grasp_h + pregrasp_dh)
+        grasp_pose = self.pos_rz_to_pose(grasp_params, grasp_h)
         
         print("Pregrasp:")
         self.move_to(*pregrasp_pose)
@@ -221,143 +458,3 @@ class ManipulatorSystem:
 
         print("Back to pregrasp:")
         self.move_to(*pregrasp_pose)
-
-
-    def take_away(self, grasp_params, grasp_h, pregrasp_dh, grasp_width, lift_dh=0.01, loc='front', debug=False):
-        pregrasp_h = grasp_h + pregrasp_dh
-        lift_h = grasp_h + pregrasp_dh + lift_dh
-
-        # hard code to account for taking away the gripper
-        if loc == 'left':
-            self.open_gripper()
-        else:
-            self.close_gripper(grasp_width + 0.04, blocking=False)
-
-        self.move_to(*self.rest_pose)
-
-        prep_pose = self.grasp_pose_to_pos_quat((self.rest_pos[0], self.rest_pos[1], grasp_params[2]), pregrasp_h)
-        self.move_to(*prep_pose)
-
-        # Move to an idle pose before pregrasp
-        print("=> align two axes:")
-        if loc == 'front':
-            prepregrasp_pose = self.grasp_pose_to_pos_quat((grasp_params[0] - 0.1, grasp_params[1], grasp_params[2]), pregrasp_h)
-        elif loc == 'left':
-            prepregrasp_pose = self.grasp_pose_to_pos_quat((grasp_params[0], grasp_params[1] - 0.1, grasp_params[2]), pregrasp_h)
-        elif loc == 'right':
-            prepregrasp_pose = self.grasp_pose_to_pos_quat((grasp_params[0], grasp_params[1] + 0.1, grasp_params[2]), pregrasp_h)
-        else:
-            raise NotImplementedError
-        self.move_to(*prepregrasp_pose)
-
-        # Move to pregrasp
-        print("=> move to pregrasp:")
-        pregrasp_pose = self.grasp_pose_to_pos_quat(grasp_params, pregrasp_h)
-        self.move_to(*pregrasp_pose)
-
-        # Lower (slower than other motions to prevent sudden collisions)
-        print("=> grasp:")
-        grasp_pose = self.grasp_pose_to_pos_quat(grasp_params, grasp_h)
-        self.move_to(*grasp_pose)
-
-        # Grasp
-        if not debug:
-            self.close_gripper(grasp_width, blocking=False)
-
-        # Lift the tool
-        print("=> lift the tool:")
-        lift_pose = self.grasp_pose_to_pos_quat(grasp_params, lift_h)
-        self.move_to(*lift_pose)
-        
-        # grasp the tool from the shelf
-        print("=> take away the tool:")
-        if loc == 'front':
-            idle_pose = self.grasp_pose_to_pos_quat((grasp_params[0] - 0.1, grasp_params[1], grasp_params[2]), lift_h)
-        elif loc == 'left':
-            idle_pose = self.grasp_pose_to_pos_quat((grasp_params[0], grasp_params[1] - 0.1, grasp_params[2]), lift_h)
-        elif loc == 'right':
-            idle_pose = self.grasp_pose_to_pos_quat((grasp_params[0], grasp_params[1] + 0.1, grasp_params[2]), lift_h)
-        else:
-            raise NotImplementedError
-        self.move_to(*idle_pose)
-
-        print("=> move back to prep pose:")
-        prep_pose = self.grasp_pose_to_pos_quat((self.rest_pos[0], self.rest_pos[1], grasp_params[2]), pregrasp_h)
-        self.move_to(*prep_pose)
-
-        self.move_to(*self.rest_pose)
-
-
-    def put_back(self, grasp_params, grasp_h, pregrasp_dh, lift_dh=0.1, loc='front'):
-        pregrasp_h = grasp_h + pregrasp_dh
-        lift_h = grasp_h + pregrasp_dh + lift_dh
-
-        self.move_to(*self.rest_pose)
-
-        prep_pose = self.grasp_pose_to_pos_quat((self.rest_pos[0], self.rest_pos[1], grasp_params[2]), pregrasp_h)
-        self.move_to(*prep_pose)
-
-        # Get to the insert position
-        print("=> get to the insert position:")
-        if loc == 'front':
-            preinsert_pose = self.grasp_pose_to_pos_quat((grasp_params[0] - 0.1, grasp_params[1], grasp_params[2]), pregrasp_h)
-        elif loc == 'left':
-            preinsert_pose = self.grasp_pose_to_pos_quat((grasp_params[0], grasp_params[1] - 0.1, grasp_params[2]), pregrasp_h)
-        elif loc == 'right':
-            preinsert_pose = self.grasp_pose_to_pos_quat((grasp_params[0], grasp_params[1] + 0.1, grasp_params[2]), pregrasp_h)
-        else:
-            raise NotImplementedError
-        self.move_to(*preinsert_pose)
-
-        print("=> insert:")
-        insert_pose = self.grasp_pose_to_pos_quat(grasp_params, pregrasp_h)
-        self.move_to(*insert_pose)
-
-        # Release
-        self.open_gripper()
-
-        # Move to pregrasp
-        print("=> lift:")
-        lift_pose = self.grasp_pose_to_pos_quat(grasp_params, lift_h)
-        self.move_to(*lift_pose)
-
-        print("=> move back to prep pose:")
-        prep_pose = self.grasp_pose_to_pos_quat((self.rest_pos[0], self.rest_pos[1], grasp_params[2]), pregrasp_h)
-        self.move_to(*prep_pose)
-
-        self.move_to(*self.rest_pose)
-
-
-    def put_back_gripper(self, grasp_params, grasp_h, pregrasp_dh, lift_dh=0.1):
-        pregrasp_h = grasp_h + pregrasp_dh
-        lift_h = grasp_h + pregrasp_dh + lift_dh
-
-        self.move_to(*self.rest_pose)
-
-        prep_pose = self.grasp_pose_to_pos_quat((self.rest_pos[0], self.rest_pos[1], grasp_params[2]), pregrasp_h)
-        self.move_to(*prep_pose)
-
-        self.close_gripper(0.04, blocking=False)
-
-        # Get to the put-down position
-        print("=> get to the put-down position:")
-        idle_pose = self.grasp_pose_to_pos_quat(grasp_params, pregrasp_h)
-        self.move_to(*idle_pose)
-
-        print("=> put down:")
-        grasp_pose = self.grasp_pose_to_pos_quat(grasp_params, grasp_h)
-        self.move_to(*grasp_pose)
-
-        # Release
-        self.open_gripper()
-
-        # Move to pregrasp
-        print("=> lift:")
-        pregrasp_pose = self.grasp_pose_to_pos_quat(grasp_params, lift_h)
-        self.move_to(*pregrasp_pose)
-
-        print("=> back to prep pose:")
-        prep_pose = self.grasp_pose_to_pos_quat((self.rest_pos[0], self.rest_pos[1], grasp_params[2]), pregrasp_h)
-        self.move_to(*prep_pose)
-
-        self.move_to(*self.rest_pose)
