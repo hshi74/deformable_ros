@@ -61,7 +61,8 @@ class ManipulatorSystem:
         self.signal_pub = rospy.Publisher('/signal', UInt8, queue_size=10)
 
         # Reset to rest pose
-        self.rest_pose = self.pos_rz_to_pose((0.4, 0.0, np.pi / 4), 0.35)
+        self.rest_pose = self.pos_rz_to_pose((0.437, 0.0, 0), 0.4) # for robocraft
+        # self.rest_pose = self.pos_rz_to_pose((0.4, 0.0, np.pi / 4), 0.35)
         self.rest_pos = self.rest_pose[0]
         self.rest_quat = self.rest_pose[1]
 
@@ -433,19 +434,21 @@ class ManipulatorSystem:
         self.move_to(*precut_pose)
 
 
-    def grasp(self, grasp_params, grasp_h, pregrasp_dh, grasp_width=0.0):
+    def grasp(self, grasp_params, grasp_h, pregrasp_dh, grasp_width=0.0, mode='react'):
         # Move to pregrasp
-        pregrasp_pose = self.pos_rz_to_pose(grasp_params, grasp_h + pregrasp_dh)
-        grasp_pose = self.pos_rz_to_pose(grasp_params, grasp_h)
-        
         print("Pregrasp:")
+        self.open_gripper()
+        pregrasp_pose = self.pos_rz_to_pose(grasp_params, grasp_h + pregrasp_dh)
         self.move_to(*pregrasp_pose)
 
         # Lower (slower than other motions to prevent sudden collisions)
         print("Grasp:")
+        grasp_pose = self.pos_rz_to_pose(grasp_params, grasp_h)
         self.move_to(*grasp_pose)
 
-        self.signal_pub.publish(UInt8(1))
+        # if mode != 'react':
+        #     self.signal_pub.publish(UInt8(1))
+        
         time.sleep(0.2)
 
         # Grasp
@@ -453,8 +456,9 @@ class ManipulatorSystem:
         # Release
         self.open_gripper()
         # Lift to pregrasp
-
-        self.signal_pub.publish(UInt8(0))
+        
+        # if mode != 'react':
+        #     self.signal_pub.publish(UInt8(0))
 
         print("Back to pregrasp:")
         self.move_to(*pregrasp_pose)

@@ -9,11 +9,12 @@ Panels:
         - /RobotModel1
         - /TF1
         - /TF1/Frames1
+        - /PointCloud24
         - /DepthCloud1/Auto Size1
         - /DepthCloud2/Auto Size1
         - /DepthCloud3/Auto Size1
         - /DepthCloud4/Auto Size1
-      Splitter Ratio: 0.5484727621078491
+      Splitter Ratio: 0.5509182214736938
     Tree Height: 1397
   - Class: rviz/Selection
     Name: Selection
@@ -33,7 +34,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: ""
+    SyncSource: PointCloud2
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -183,27 +184,27 @@ Visualization Manager:
         panda_hand:
           Value: false
         panda_leftfinger:
-          Value: false
+          Value: true
         panda_link0:
           Value: true
         panda_link1:
-          Value: false
+          Value: true
         panda_link2:
-          Value: false
+          Value: true
         panda_link3:
-          Value: false
+          Value: true
         panda_link4:
-          Value: false
+          Value: true
         panda_link5:
-          Value: false
+          Value: true
         panda_link6:
-          Value: false
+          Value: true
         panda_link7:
           Value: false
         panda_link8:
           Value: false
         panda_rightfinger:
-          Value: false
+          Value: true
       Marker Alpha: 1
       Marker Scale: 1
       Name: TF
@@ -212,6 +213,34 @@ Visualization Manager:
       Show Names: false
       Tree:
         panda_link0:
+          cam1_link:
+            cam1_color_frame:
+              cam1_color_optical_frame:
+                {}
+            cam1_depth_frame:
+              cam1_depth_optical_frame:
+                {}
+          cam2_link:
+            cam2_color_frame:
+              cam2_color_optical_frame:
+                {}
+            cam2_depth_frame:
+              cam2_depth_optical_frame:
+                {}
+          cam3_link:
+            cam3_color_frame:
+              cam3_color_optical_frame:
+                {}
+            cam3_depth_frame:
+              cam3_depth_optical_frame:
+                {}
+          cam4_link:
+            cam4_color_frame:
+              cam4_color_optical_frame:
+                {}
+            cam4_depth_frame:
+              cam4_depth_optical_frame:
+                {}
           panda_link1:
             panda_link2:
               panda_link3:
@@ -255,7 +284,7 @@ Visualization Manager:
       Position Transformer: XYZ
       Queue Size: 1
       Selectable: false
-      Size (Pixels): 7
+      Size (Pixels): 5
       Size (m): 0.009999999776482582
       Style: Points
       Topic: /cam1/depth/color/points
@@ -283,7 +312,7 @@ Visualization Manager:
       Position Transformer: XYZ
       Queue Size: 1
       Selectable: false
-      Size (Pixels): 7
+      Size (Pixels): 5
       Size (m): 0.009999999776482582
       Style: Points
       Topic: /cam2/depth/color/points
@@ -311,7 +340,7 @@ Visualization Manager:
       Position Transformer: XYZ
       Queue Size: 1
       Selectable: false
-      Size (Pixels): 7
+      Size (Pixels): 5
       Size (m): 0.009999999776482582
       Style: Points
       Topic: /cam3/depth/color/points
@@ -339,7 +368,7 @@ Visualization Manager:
       Position Transformer: XYZ
       Queue Size: 1
       Selectable: false
-      Size (Pixels): 7
+      Size (Pixels): 5
       Size (m): 0.009999999776482582
       Style: Points
       Topic: /cam4/depth/color/points
@@ -519,7 +548,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 2.875932455062866
+      Distance: 0.4535656273365021
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -527,24 +556,24 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 0.4080676734447479
-        Y: -0.022876884788274765
-        Z: -0.040689170360565186
+        X: 0.4443936347961426
+        Y: -0.008102375082671642
+        Z: 0.08850176632404327
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.0647984743118286
+      Pitch: 0.3347971737384796
       Target Frame: <Fixed Frame>
-      Yaw: 0.025575291365385056
+      Yaw: 4.665205001831055
     Saved: ~
 Window Geometry:
   Displays:
     collapsed: false
   Height: 1957
   Hide Left Dock: false
-  Hide Right Dock: false
+  Hide Right Dock: true
   QMainWindow State: 000000ff00000000fd0000000400000000000002590000069dfc0200000008fb0000001200530065006c0065006300740069006f006e00000001e10000009b000000b000fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000b0fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000006e0000069d0000018200fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261000000010000021f00000545fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073000000006e000005450000013200fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000009a000000060fc0100000002fb0000000800540069006d00650100000000000009a00000057100fffffffb0000000800540069006d006501000000000000045000000000000000000000073b0000069d00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Selection:
     collapsed: false
@@ -555,5 +584,5 @@ Window Geometry:
   Views:
     collapsed: false
   Width: 2464
-  X: 144
+  X: 1632
   Y: 54

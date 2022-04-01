@@ -16,7 +16,7 @@ from std_msgs.msg import UInt8
 from timeit import default_timer as timer
 from transforms3d.quaternions import *
 
-from manipulator import ManipulatorSystem
+from manipulate import ManipulatorSystem
 
 # Grasp params
 n_grips = 3
@@ -24,7 +24,7 @@ n_grips = 3
 p_mid_point = np.array([0.437, 0.0])
 p_noise_scale = 0.005
 rest_pose = ([p_mid_point[0], 0.0, 0.6], [1.0, 0.0, 0.0, 0.0])
-plasticine_grasp_h = 0.1034 + 0.075 + 0.06 - 0.035, # ee_to_finger + finger_to_bot + cube_h + extra
+plasticine_grasp_h = 0.1034 + 0.075 + 0.06 # ee_to_finger + finger_to_bot + cube_h + extra
 plasticine_pregrasp_dh = 0.1
 grasp_force = 100.0
 grasp_speed = 0.01
@@ -208,16 +208,23 @@ def grasp_as_plan(mode):
     global p_stats
 
     global iter
+    
     # prefix = "/scr/hxu/projects/deformable/VGPL-Dynamics-Prior/dump/dump_ngrip_fixed_robot_v4/" + \
     #         "files_dy_21-Jan-2022-22:33:11.729243_nHis4_aug0.05_gt0_seqlen6_emd0.9_chamfer0.1_uh0.0_clip0.0/"
-    # control_out_dir = prefix + "control_robot/A/selected"
-    control_out_dir = "/scr/hxu/projects/deformable/VGPL-Dynamics-Prior/dump/robot_control_final/t5"
-    if mode == 'read':
+    # control_out_dir = prefix + "control_robot/X/selected"
+    control_out_dir = "/scr/hxu/projects/deformable/VGPL-Dynamics-Prior/dump/robot_control_rebuttal/A"
+    
+    print(f"Mode: {mode}")
+    if mode == "react":
+        pass
+    elif mode == 'read':
         init_pose_seq = np.load(f"{control_out_dir}/init_pose_seq_opt.npy", allow_pickle=True)
         act_seq = np.load(f"{control_out_dir}/act_seq_opt.npy", allow_pickle=True)
     elif mode == 'replay':
         p_stats = np.load(f"{control_out_dir}/p_stats.npy", allow_pickle=True)
         init_pose_seq, act_seq = replay(control_out_dir)
+    else:
+        raise NotImplementedError
 
     rospy.Subscriber("/init_pose_seq", numpy_msg(Floats), init_pose_seq_callback)
     rospy.Subscriber("/act_seq", numpy_msg(Floats), act_seq_callback)
@@ -227,23 +234,32 @@ def grasp_as_plan(mode):
     # Perform grasping
     rate = rospy.Rate(1)
     while not rospy.is_shutdown():
-        print("Spinning...")
+        # print("Spinning...")
         if not (init_pose_seq is None or act_seq is None):
             print(init_pose_seq.shape, act_seq.shape)
             grasp_params_list, grasp_width_list = sim_real_remap(init_pose_seq, act_seq)
             print(grasp_params_list, grasp_width_list)
 
+            if mode == "replay":
+                robot.signal_pub.publish(UInt8(1))
+
             for i in range(len(grasp_params_list)):
                 # Perform grasp
                 # last = i == len(grasp_params_list) - 1
-                robot.grasp(grasp_params_list[i], plasticine_grasp_h, plasticine_pregrasp_dh, grasp_width_list[i])
+                print(grasp_params_list[i], plasticine_grasp_h, plasticine_pregrasp_dh, grasp_width_list[i])
+                robot.grasp(grasp_params_list[i], plasticine_grasp_h, plasticine_pregrasp_dh, 
+                            grasp_width_list[i], mode=mode)
 
             robot.reset()
 
             init_pose_seq = None
             act_seq = None
 
-            robot.signal_pub.publish(UInt8(1))
+            if mode == "replay":
+                robot.signal_pub.publish(UInt8(0))
+            
+            if mode == "react":
+                robot.signal_pub.publish(UInt8(1))
 
         rate.sleep()
 
@@ -256,20 +272,7 @@ def main():
     rospy.init_node('grasp', anonymous=True)
 
     # grasp_random()
-    # grasp_as_plan('replay')
-
-    # take away the tool
-    grasp_params = (0.4, 0.275, np.pi / 4)
-    grasp_h =  0.31
-    pregrasp_dh = 0.01
-    grasp_width = 0.015
-    robot.take_away(grasp_params, grasp_h, pregrasp_dh, grasp_width)
-    
-    # put the tool back
-    grasp_params = (0.4, 0.275, np.pi / 4)
-    grasp_h =  0.31
-    pregrasp_dh = 0.015
-    robot.put_back(grasp_params, grasp_h, pregrasp_dh)
+    grasp_as_plan('react')
 
 
 if __name__ == "__main__":
