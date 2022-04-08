@@ -24,7 +24,7 @@ num_cams = 4
 
 cd = os.path.dirname(os.path.realpath(sys.argv[0]))
 prefix = os.path.join('tool_classification_pre_3-15', tool_list[tool_idx])
-bag_path = os.path.join(cd, '..', 'dataset', prefix, f'cube_0.bag')
+bag_path = os.path.join(cd, '..', 'raw_data', prefix, f'cube_0.bag')
 
 def main():
     bag = rosbag.Bag(bag_path)
@@ -42,7 +42,7 @@ def main():
         # Convert ROS Image message to OpenCV image
         img_bgr = br.imgmsg_to_cv2(image_msgs[i])
         img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
-        cv2.imwrite(os.path.join(cd, '..', 'dataset', prefix, f'image_{i}.png'), img_rgb)
+        cv2.imwrite(os.path.join(cd, '..', 'raw_data', prefix, f'image_{i}.png'), img_rgb)
 
 
 if __name__ == '__main__':

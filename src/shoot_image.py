@@ -32,7 +32,7 @@ num_cams = 4
 
 cd = os.path.dirname(os.path.realpath(sys.argv[0]))
 prefix = os.path.join('tool_classification_pre_3-15', tool_list[tool_idx])
-image_path = os.path.join(cd, '..', 'dataset', prefix)
+image_path = os.path.join(cd, '..', 'raw_data', prefix)
 
 os.system('mkdir -p ' + f"{image_path}")
 

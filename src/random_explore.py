@@ -73,8 +73,6 @@ def main():
 
         rate.sleep()
 
-    robot.put_back_tool(task_tool_mapping[task_name])
-
 
 init_pose_seq = None
 def init_pose_seq_callback(msg):
@@ -101,9 +99,10 @@ def iter_callback(msg):
     iter = msg.data
 
 
-def random_cut(pos_noise_scale=0.05):
+def random_cut(pos_noise_scale=0.03):
     pos_noise_y = pos_noise_scale * (np.random.rand() * 2 - 1)
-    cut_pos = [0.385, -0.1 + pos_noise_y, 0.23]
+    print(pos_noise_y)
+    cut_pos = [0.41, -0.1 + pos_noise_y, 0.23]
     cut_rot = [0.0, -0.05, np.pi / 4]
     precut_dh = 0.07
     robot.cut(cut_pos, cut_rot, precut_dh)

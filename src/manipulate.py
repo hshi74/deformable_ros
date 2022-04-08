@@ -239,30 +239,30 @@ class ManipulatorSystem:
 
     def take_away_tool(self, tool):
         if tool == 'gripper':
-            self.take_away(grasp_params=(0.415, 0.27, np.pi / 4), grasp_h=0.315, pregrasp_dh=0.01, grasp_width=0.01, lift_dh=0.1, loc='left')
+            self.take_away(grasp_params=(0.455, 0.27, np.pi / 4), grasp_h=0.315, pregrasp_dh=0.01, grasp_width=0.01, lift_dh=0.1, loc='left')
         elif tool == 'roller':
-            self.take_away(grasp_params=(0.62, 0.19, -np.pi / 4), grasp_h=0.325, pregrasp_dh=0.01, grasp_width=0.015)
+            self.take_away(grasp_params=(0.66, 0.19, -np.pi / 4), grasp_h=0.325, pregrasp_dh=0.01, grasp_width=0.015)
         elif tool == 'planar_cutter':
-            self.take_away(grasp_params=(0.62, 0.065, -np.pi / 4), grasp_h=0.325, pregrasp_dh=0.01, grasp_width=0.015)
+            self.take_away(grasp_params=(0.66, 0.065, -np.pi / 4), grasp_h=0.325, pregrasp_dh=0.01, grasp_width=0.015)
         elif tool == 'circular_cutter':
-            self.take_away(grasp_params=(0.62, -0.1, -np.pi / 4), grasp_h=0.325, pregrasp_dh=0.01, grasp_width=0.015)
+            self.take_away(grasp_params=(0.66, -0.1, -np.pi / 4), grasp_h=0.325, pregrasp_dh=0.01, grasp_width=0.015)
         elif tool == 'shovel':
-            self.take_away(grasp_params=(0.62, -0.225, -np.pi / 4), grasp_h=0.325, pregrasp_dh=0.01, grasp_width=0.015)
+            self.take_away(grasp_params=(0.66, -0.225, -np.pi / 4), grasp_h=0.325, pregrasp_dh=0.01, grasp_width=0.015)
         else:
             raise NotImplementedError
 
 
     def put_back_tool(self, tool):
         if tool == 'gripper':
-            self.put_back_gripper(grasp_params=(0.415, 0.26, np.pi / 4), grasp_h=0.315, pregrasp_dh=0.05)
+            self.put_back_gripper(grasp_params=(0.455, 0.26, np.pi / 4), grasp_h=0.315, pregrasp_dh=0.05)
         elif tool == 'roller':
-            self.put_back(grasp_params=(0.615, 0.19, -np.pi / 4), grasp_h=0.32, pregrasp_dh=0.015)
+            self.put_back(grasp_params=(0.655, 0.19, -np.pi / 4), grasp_h=0.32, pregrasp_dh=0.015)
         elif tool == 'planar_cutter':
-            self.put_back(grasp_params=(0.615, 0.065, -np.pi / 4), grasp_h=0.32, pregrasp_dh=0.015)
+            self.put_back(grasp_params=(0.655, 0.065, -np.pi / 4), grasp_h=0.32, pregrasp_dh=0.015)
         elif tool == 'circular_cutter':
-            self.put_back(grasp_params=(0.615, -0.1, -np.pi / 4), grasp_h=0.32, pregrasp_dh=0.015)
+            self.put_back(grasp_params=(0.655, -0.1, -np.pi / 4), grasp_h=0.32, pregrasp_dh=0.015)
         elif tool == 'shovel':
-            self.put_back(grasp_params=(0.615, -0.225, -np.pi / 4), grasp_h=0.32, pregrasp_dh=0.015)
+            self.put_back(grasp_params=(0.655, -0.225, -np.pi / 4), grasp_h=0.32, pregrasp_dh=0.015)
         else:
             raise NotImplementedError
 

@@ -212,7 +212,12 @@ def grasp_as_plan(mode):
     # prefix = "/scr/hxu/projects/deformable/VGPL-Dynamics-Prior/dump/dump_ngrip_fixed_robot_v4/" + \
     #         "files_dy_21-Jan-2022-22:33:11.729243_nHis4_aug0.05_gt0_seqlen6_emd0.9_chamfer0.1_uh0.0_clip0.0/"
     # control_out_dir = prefix + "control_robot/X/selected"
-    control_out_dir = "/scr/hxu/projects/deformable/VGPL-Dynamics-Prior/dump/robot_control_rebuttal/A"
+    # control_out_dir = "/scr/hxu/projects/deformable/VGPL-Dynamics-Prior/dump/robot_control_rebuttal/A"
+    # control_out_dir = "/scr/hxu/projects/deformable/VGPL-Dynamics-Prior/dump/dump_ngrip_fixed_robot_v4/" + \
+    #         "files_dy_21-Jan-2022-22:33:11.729243_nHis4_aug0.05_gt0_seqlen6_emd0.9_chamfer0.1_uh0.0_clip0.0/" + \
+    #         "control_robot/X/sim_0+algo_fix+3_grips+CEM+emd_chamfer_uh_clip+correction_0+debug_0"
+
+    control_out_dir = "/scr/hxu/projects/deformable/VGPL-Dynamics-Prior/dump/sim_control_final/A/selected"
     
     print(f"Mode: {mode}")
     if mode == "react":
@@ -272,7 +277,7 @@ def main():
     rospy.init_node('grasp', anonymous=True)
 
     # grasp_random()
-    grasp_as_plan('react')
+    grasp_as_plan('replay')
 
 
 if __name__ == "__main__":
