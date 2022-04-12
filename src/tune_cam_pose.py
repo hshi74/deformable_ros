@@ -34,7 +34,7 @@ rot_stride = 0.001
 def main():
     rospy.init_node('cam_pose_tuner', anonymous=True)
 
-    tune_idx = [1]
+    tune_idx = [1, 2, 3, 4]
     static_br = tf2_ros.StaticTransformBroadcaster()
     static_ts_list = []
     for i in [1, 2, 3, 4]:

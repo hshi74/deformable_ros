@@ -22,19 +22,11 @@ import manipulate
 import execute_actions
 
 
-fixed_frame = 'panda_link0'
-# task_name = 'cutting_pre_3-26'
-task_name = 'cutting_pre_4-7'
+if len(sys.argv) < 2:
+    print("Please enter the mode!")
+    exit()
 
-num_cams = 4
-cd = os.path.dirname(os.path.realpath(sys.argv[0]))
-data_path = os.path.join(cd, '..', 'raw_data', task_name)
-os.system('mkdir -p ' + f"{data_path}")
-
-with open(os.path.join(os.path.join(cd, '..', 'env'), 'camera_pose_world.yml'), 'r') as f:
-    cam_pose_dict = yaml.load(f, Loader=yaml.FullLoader)
-
-mode = 'collect_data' # collect_data, record_result, or correct_control
+mode = sys.argv[1] # collect_data, record_result, or correct_control
 
 # 0 -> uninitialized / pause; 1 -> start; 2 -> stop
 if mode == 'collect_data':
@@ -52,6 +44,18 @@ elif mode == 'correct_control':
     signal = 1
 else:
     raise NotImplementedError
+
+fixed_frame = 'panda_link0'
+# task_name = 'cutting_pre_3-26'
+task_name = 'gripping_pre_4-11'
+
+num_cams = 4
+cd = os.path.dirname(os.path.realpath(sys.argv[0]))
+data_path = os.path.join(cd, '..', 'raw_data', task_name)
+os.system('mkdir -p ' + f"{data_path}")
+
+with open(os.path.join(os.path.join(cd, '..', 'env'), 'camera_pose_world.yml'), 'r') as f:
+    cam_pose_dict = yaml.load(f, Loader=yaml.FullLoader)
 
 
 def main():

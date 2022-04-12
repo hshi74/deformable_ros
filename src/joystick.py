@@ -79,7 +79,7 @@ def joy_callback(msg):
         rot_curr = [0.0, 0.0, np.pi / 4]
 
     elif 1 in msg.buttons[:4] or msg.axes[6] or msg.axes[7]:
-        # pos_goal, quat_goal = robot.grasp_pose_to_pos_quat(pose_params, pose_h)
+        # pos_goal, quat_goal = robot.grip_pose_to_pos_quat(pose_params, pose_h)
         pos_actual, quat_actual = robot.arm.get_ee_pose()
         # pos_error = np.linalg.norm(pos_actual - pos_goal)
         # quat_error = np.linalg.norm(quat_actual - quat_goal)
@@ -163,10 +163,10 @@ def joy_callback(msg):
             #             width = 0.015
             #         break
 
-            # customized grasp_speed and grasp_force
+            # customized grip_speed and grip_force
             width = width_cur - init_width_stride
             if width >= 0.0:
-                robot.close_gripper(width, blocking=False, grasp_params=(0.01, 50.0))
+                robot.close_gripper(width, blocking=False, grip_params=(0.01, 50.0))
 
     elif msg.axes[0]:
         print("========== start manipulating... ==========")
@@ -179,7 +179,7 @@ def joy_callback(msg):
 
 # Initialize interfaces
 def main():
-    rospy.init_node('grasp', anonymous=True)
+    rospy.init_node('grip', anonymous=True)
 
     # subscribed to joystick inputs on topic "joy"
     rospy.Subscriber("joy", Joy, joy_callback)

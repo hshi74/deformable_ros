@@ -18,16 +18,16 @@ from transforms3d.quaternions import *
 
 from manipulate import ManipulatorSystem
 
-# Grasp params
+# grip params
 n_grips = 3
 
 p_mid_point = np.array([0.437, 0.0])
 p_noise_scale = 0.005
 rest_pose = ([p_mid_point[0], 0.0, 0.6], [1.0, 0.0, 0.0, 0.0])
-plasticine_grasp_h = 0.1034 + 0.075 + 0.06 # ee_to_finger + finger_to_bot + cube_h + extra
-plasticine_pregrasp_dh = 0.1
-grasp_force = 100.0
-grasp_speed = 0.01
+plasticine_grip_h = 0.1034 + 0.075 + 0.06 # ee_to_finger + finger_to_bot + cube_h + extra
+plasticine_pregrip_dh = 0.1
+grip_force = 100.0
+grip_speed = 0.01
 
 planner_dt = 0.02
 
@@ -56,19 +56,19 @@ def random_pose(rot_prev, i):
     return p_mid_point[0] + p_noise_x, p_mid_point[1] + p_noise_y, rot_noise
 
 
-def grasp_random():
-    # Perform grasping
+def grip_random():
+    # Perform griping
     i = 0
     rot_curr = np.random.uniform(-np.pi / 2, 0)
     try:
         while True:
-            # Sample grasp
-            grasp_params = random_pose(rot_curr, i)
-            rot_curr = grasp_params[-1]
+            # Sample grip
+            grip_params = random_pose(rot_curr, i)
+            rot_curr = grip_params[-1]
 
-            # Perform grasp
-            print(f"========== Grasp {i+1} ==========")
-            robot.grasp(grasp_params, plasticine_grasp_h, plasticine_pregrasp_dh)
+            # Perform grip
+            print(f"========== grip {i+1} ==========")
+            robot.grip(grip_params, plasticine_grip_h, plasticine_pregrip_dh)
 
             # Loop termination
             i += 1
@@ -119,8 +119,8 @@ def sim_real_remap(init_pose_seq, act_seq):
     sim_mean_p = np.array([0.5, 0.11348496, 0.5])
     sim_std_p = np.array([0.06, 0.04888084, 0.06])
 
-    grasp_params_list = []
-    grasp_width_list = []
+    grip_params_list = []
+    grip_width_list = []
     for i in range(init_pose_seq.shape[0]):
         rot_z = np.arctan2(init_pose_seq[i, gripper_mid_point, 9] - init_pose_seq[i, gripper_mid_point, 2], 
             init_pose_seq[i, gripper_mid_point, 7] - init_pose_seq[i, gripper_mid_point, 0]) + np.pi / 2 - np.pi / 4
@@ -130,33 +130,33 @@ def sim_real_remap(init_pose_seq, act_seq):
         elif rot_z < -np.pi / 2:
             rot_z += np.pi
 
-        gripper_grasp_pos_1 = init_pose_seq[i, gripper_mid_point, :3] + 0.02 * (np.sum(act_seq[i, :len_per_grip, :3], axis=0))
+        gripper_grip_pos_1 = init_pose_seq[i, gripper_mid_point, :3] + 0.02 * (np.sum(act_seq[i, :len_per_grip, :3], axis=0))
         if np.linalg.norm(act_seq[i, 0, :3]) > 0:
-            gripper_grasp_pos_1 += sim_tool_size * act_seq[i, 0, :3] / np.linalg.norm(act_seq[i, 0, :3])
-        gripper_grasp_pos_2 = init_pose_seq[i, gripper_mid_point, 7:10] + 0.02 * (np.sum(act_seq[i, :len_per_grip, 6:9], axis=0))
+            gripper_grip_pos_1 += sim_tool_size * act_seq[i, 0, :3] / np.linalg.norm(act_seq[i, 0, :3])
+        gripper_grip_pos_2 = init_pose_seq[i, gripper_mid_point, 7:10] + 0.02 * (np.sum(act_seq[i, :len_per_grip, 6:9], axis=0))
         if np.linalg.norm(act_seq[i, 0, 6:9]) > 0:
-            gripper_grasp_pos_2 += sim_tool_size * act_seq[i, 0, 6:9] / np.linalg.norm(act_seq[i, 0, 6:9])
+            gripper_grip_pos_2 += sim_tool_size * act_seq[i, 0, 6:9] / np.linalg.norm(act_seq[i, 0, 6:9])
 
         gripper_init_pos_1 = (init_pose_seq[i, gripper_mid_point, :3] - sim_mean_p) / sim_std_p
         gripper_init_pos_1 = np.array([gripper_init_pos_1[0], gripper_init_pos_1[2], gripper_init_pos_1[1]]) * p_stats[3:] + p_stats[:3]
         gripper_init_pos_2 = (init_pose_seq[i, gripper_mid_point, 7:10] - sim_mean_p) / sim_std_p
         gripper_init_pos_2 = np.array([gripper_init_pos_2[0], gripper_init_pos_2[2], gripper_init_pos_2[1]]) * p_stats[3:] + p_stats[:3]
 
-        gripper_grasp_pos_1 = (gripper_grasp_pos_1 - sim_mean_p) / sim_std_p
-        gripper_grasp_pos_1 = np.array([gripper_grasp_pos_1[0], gripper_grasp_pos_1[2], gripper_grasp_pos_1[1]]) * p_stats[3:] + p_stats[:3]
-        gripper_grasp_pos_2 = (gripper_grasp_pos_2 - sim_mean_p) / sim_std_p
-        gripper_grasp_pos_2 = np.array([gripper_grasp_pos_2[0], gripper_grasp_pos_2[2], gripper_grasp_pos_2[1]]) * p_stats[3:] + p_stats[:3]
+        gripper_grip_pos_1 = (gripper_grip_pos_1 - sim_mean_p) / sim_std_p
+        gripper_grip_pos_1 = np.array([gripper_grip_pos_1[0], gripper_grip_pos_1[2], gripper_grip_pos_1[1]]) * p_stats[3:] + p_stats[:3]
+        gripper_grip_pos_2 = (gripper_grip_pos_2 - sim_mean_p) / sim_std_p
+        gripper_grip_pos_2 = np.array([gripper_grip_pos_2[0], gripper_grip_pos_2[2], gripper_grip_pos_2[1]]) * p_stats[3:] + p_stats[:3]
 
         mid_point = (gripper_init_pos_1 + gripper_init_pos_2) / 2
 
-        grasp_width = np.linalg.norm(gripper_grasp_pos_1 - gripper_grasp_pos_2)
-        grasp_width = grasp_width + 2 * robot_tool_size - 2 * gripper_ft_trans[1]
-        grasp_width_list.append(grasp_width)
+        grip_width = np.linalg.norm(gripper_grip_pos_1 - gripper_grip_pos_2)
+        grip_width = grip_width + 2 * robot_tool_size - 2 * gripper_ft_trans[1]
+        grip_width_list.append(grip_width)
 
-        grasp_params_list.append((mid_point[0], mid_point[1], rot_z))
+        grip_params_list.append((mid_point[0], mid_point[1], rot_z))
 
     # x, y, rz
-    return grasp_params_list, grasp_width_list
+    return grip_params_list, grip_width_list
 
 
 def replay(path):
@@ -202,7 +202,7 @@ def iter_callback(msg):
     iter = msg.data
 
 
-def grasp_as_plan(mode):
+def grip_as_plan(mode):
     global init_pose_seq
     global act_seq
     global p_stats
@@ -236,24 +236,24 @@ def grasp_as_plan(mode):
     rospy.Subscriber("/p_stats", numpy_msg(Floats), p_stats_callback)
     rospy.Subscriber("/iter", UInt8, iter_callback)
 
-    # Perform grasping
+    # Perform griping
     rate = rospy.Rate(1)
     while not rospy.is_shutdown():
         # print("Spinning...")
         if not (init_pose_seq is None or act_seq is None):
             print(init_pose_seq.shape, act_seq.shape)
-            grasp_params_list, grasp_width_list = sim_real_remap(init_pose_seq, act_seq)
-            print(grasp_params_list, grasp_width_list)
+            grip_params_list, grip_width_list = sim_real_remap(init_pose_seq, act_seq)
+            print(grip_params_list, grip_width_list)
 
             if mode == "replay":
                 robot.signal_pub.publish(UInt8(1))
 
-            for i in range(len(grasp_params_list)):
-                # Perform grasp
-                # last = i == len(grasp_params_list) - 1
-                print(grasp_params_list[i], plasticine_grasp_h, plasticine_pregrasp_dh, grasp_width_list[i])
-                robot.grasp(grasp_params_list[i], plasticine_grasp_h, plasticine_pregrasp_dh, 
-                            grasp_width_list[i], mode=mode)
+            for i in range(len(grip_params_list)):
+                # Perform grip
+                # last = i == len(grip_params_list) - 1
+                print(grip_params_list[i], plasticine_grip_h, plasticine_pregrip_dh, grip_width_list[i])
+                robot.grip(grip_params_list[i], plasticine_grip_h, plasticine_pregrip_dh, 
+                            grip_width_list[i], mode=mode)
 
             robot.reset()
 
@@ -274,10 +274,10 @@ robot = ManipulatorSystem()
 def main():
     global robot
 
-    rospy.init_node('grasp', anonymous=True)
+    rospy.init_node('grip', anonymous=True)
 
-    # grasp_random()
-    grasp_as_plan('replay')
+    # grip_random()
+    grip_as_plan('replay')
 
 
 if __name__ == "__main__":
