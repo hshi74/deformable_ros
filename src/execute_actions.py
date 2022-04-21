@@ -26,8 +26,6 @@ p_noise_scale = 0.005
 rest_pose = ([p_mid_point[0], 0.0, 0.6], [1.0, 0.0, 0.0, 0.0])
 plasticine_grip_h = 0.1034 + 0.075 + 0.06 # ee_to_finger + finger_to_bot + cube_h + extra
 plasticine_pregrip_dh = 0.1
-grip_force = 100.0
-grip_speed = 0.01
 
 planner_dt = 0.02
 
@@ -162,20 +160,14 @@ def sim_real_remap(init_pose_seq, act_seq):
 def replay(path):
     act_seq_path_list = sorted(glob.glob(os.path.join(path, 'act_seq_*')))
     init_pose_seq_path_list = sorted(glob.glob(os.path.join(path, 'init_pose_seq_*')))
-    iter = 0
     init_pose_seq_replay = []
     act_seq_replay = []
-    # import pdb; pdb.set_trace()
     for act_seq_path, init_pose_seq_path in zip(act_seq_path_list, init_pose_seq_path_list):
         init_pose_seq = np.load(init_pose_seq_path, allow_pickle=True)
         act_seq = np.load(act_seq_path, allow_pickle=True)
-        # if iter == len(act_seq_path_list) - 1: 
         for i in range(init_pose_seq.shape[0]):
             init_pose_seq_replay.append(init_pose_seq[i])
             act_seq_replay.append(act_seq[i][:30])
-        # else:
-        #     init_pose_seq_replay.append(init_pose_seq[0])
-        #     act_seq_replay.append(act_seq[0])
 
     return np.stack(init_pose_seq_replay), np.stack(act_seq_replay)
 
@@ -209,22 +201,15 @@ def grip_as_plan(mode):
 
     global iter
     
-    # prefix = "/scr/hxu/projects/deformable/VGPL-Dynamics-Prior/dump/dump_ngrip_fixed_robot_v4/" + \
-    #         "files_dy_21-Jan-2022-22:33:11.729243_nHis4_aug0.05_gt0_seqlen6_emd0.9_chamfer0.1_uh0.0_clip0.0/"
-    # control_out_dir = prefix + "control_robot/X/selected"
-    # control_out_dir = "/scr/hxu/projects/deformable/VGPL-Dynamics-Prior/dump/robot_control_rebuttal/A"
-    # control_out_dir = "/scr/hxu/projects/deformable/VGPL-Dynamics-Prior/dump/dump_ngrip_fixed_robot_v4/" + \
-    #         "files_dy_21-Jan-2022-22:33:11.729243_nHis4_aug0.05_gt0_seqlen6_emd0.9_chamfer0.1_uh0.0_clip0.0/" + \
-    #         "control_robot/X/sim_0+algo_fix+3_grips+CEM+emd_chamfer_uh_clip+correction_0+debug_0"
-
-    control_out_dir = "/scr/hxu/projects/deformable/VGPL-Dynamics-Prior/dump/sim_control_final/A/selected"
+    control_out_dir = "/scr/hxu/projects/RoboCook/dump/control/control_ngrip_fixed/alphabet/X/fem_predict_n=5_h=2_CEM_chamfer_emd_h_corr"
     
     print(f"Mode: {mode}")
     if mode == "react":
         pass
-    elif mode == 'read':
-        init_pose_seq = np.load(f"{control_out_dir}/init_pose_seq_opt.npy", allow_pickle=True)
-        act_seq = np.load(f"{control_out_dir}/act_seq_opt.npy", allow_pickle=True)
+    elif mode == 'transfer':
+        p_stats = np.load(f"/scr/hxu/projects/RoboCook/misc/raw_data/p_stats.npy", allow_pickle=True)
+        init_pose_seq = np.load(f"{control_out_dir}/best_init_pose_seq.npy", allow_pickle=True)
+        act_seq = np.load(f"{control_out_dir}/best_act_seq.npy", allow_pickle=True)
     elif mode == 'replay':
         p_stats = np.load(f"{control_out_dir}/p_stats.npy", allow_pickle=True)
         init_pose_seq, act_seq = replay(control_out_dir)
@@ -276,8 +261,7 @@ def main():
 
     rospy.init_node('grip', anonymous=True)
 
-    # grip_random()
-    grip_as_plan('replay')
+    grip_as_plan('transfer')
 
 
 if __name__ == "__main__":

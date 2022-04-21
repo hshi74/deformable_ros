@@ -14,7 +14,7 @@ from datetime import datetime
 from message_filters import ApproximateTimeSynchronizer, Subscriber
 from geometry_msgs.msg import TransformStamped
 from sensor_msgs.msg import PointCloud2
-from std_msgs.msg import UInt8
+from std_msgs.msg import UInt8, Float32
 from timeit import default_timer as timer
 from transforms3d.quaternions import *
 
@@ -27,6 +27,16 @@ if len(sys.argv) < 2:
     exit()
 
 mode = sys.argv[1] # collect_data, record_result, or correct_control
+
+fixed_frame = 'panda_link0'
+num_cams = 4
+
+# task_name = 'cutting_pre_3-26'
+task_name = 'gripping_pre_4-18'
+
+cd = os.path.dirname(os.path.realpath(sys.argv[0]))
+data_path = os.path.join(cd, '..', 'raw_data', task_name)
+os.system('mkdir -p ' + f"{data_path}")
 
 # 0 -> uninitialized / pause; 1 -> start; 2 -> stop
 if mode == 'collect_data':
@@ -44,15 +54,6 @@ elif mode == 'correct_control':
     signal = 1
 else:
     raise NotImplementedError
-
-fixed_frame = 'panda_link0'
-# task_name = 'cutting_pre_3-26'
-task_name = 'gripping_pre_4-11'
-
-num_cams = 4
-cd = os.path.dirname(os.path.realpath(sys.argv[0]))
-data_path = os.path.join(cd, '..', 'raw_data', task_name)
-os.system('mkdir -p ' + f"{data_path}")
 
 with open(os.path.join(os.path.join(cd, '..', 'env'), 'camera_pose_world.yml'), 'r') as f:
     cam_pose_dict = yaml.load(f, Loader=yaml.FullLoader)
@@ -150,12 +151,11 @@ def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
                 bag.write('/cam3/depth/color/points', cam3_msg)
                 bag.write('/cam4/depth/color/points', cam4_msg)
 
-                # gripper_1_pose, gripper_2_pose = robot.get_gripper_pose()
-                # bag.write('/gripper_1_pose', gripper_1_pose)
-                # bag.write('/gripper_2_pose', gripper_2_pose)
-                
                 ee_pose = robot.get_ee_pose()
                 bag.write('/ee_pose', ee_pose)
+                
+                gripper_width = robot.gripper.get_state().width
+                bag.write('/gripper_width', Float32(gripper_width))
 
                 bag.close()
 
@@ -169,18 +169,17 @@ def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
 
     elif mode == 'correct_control':
         if signal == 1:
-            bag = rosbag.Bag(os.path.join(data_path, datetime_now, f'plasticine_{iter}.bag'), 'w')
+            bag = rosbag.Bag(os.path.join(data_path, datetime_now, f'state_{iter}.bag'), 'w')
             bag.write('/cam1/depth/color/points', cam1_msg)
             bag.write('/cam2/depth/color/points', cam2_msg)
             bag.write('/cam3/depth/color/points', cam3_msg)
             bag.write('/cam4/depth/color/points', cam4_msg)
 
-            # gripper_1_pose, gripper_2_pose = robot.get_gripper_pose()
-            # bag.write('/gripper_1_pose', gripper_1_pose)
-            # bag.write('/gripper_2_pose', gripper_2_pose)
-
             ee_pose = robot.get_ee_pose()
             bag.write('/ee_pose', ee_pose)
+
+            gripper_width = robot.gripper.get_state().width
+            bag.write('/gripper_width', Float32(gripper_width))
 
             bag.close()
 

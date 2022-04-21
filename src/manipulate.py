@@ -63,8 +63,11 @@ class ManipulatorSystem:
         self.rest_pos = self.rest_pose[0]
         self.rest_quat = self.rest_pose[1]
 
-        self.grip_speed = 0.05
-        self.grip_force = 10.0
+        self.grip_speed = 0.1
+        self.grip_force = 50.0
+
+        # self.grip_speed = 0.05
+        # self.grip_force = 10.0
 
         self.tool_status = {
             'circular_cutter': 'ready',
@@ -472,7 +475,7 @@ class ManipulatorSystem:
             time.sleep(0.2)
 
         # grip
-        self.close_gripper(grip_width, blocking=False, grip_params=(0.005, 500))
+        self.close_gripper(grip_width, blocking=False, grip_params=(0.005, 1000))
         # Release
         self.open_gripper()
         # Lift to pregrip
