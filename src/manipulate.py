@@ -20,9 +20,8 @@ from torchcontrol.transform import Rotation as R
 from torchcontrol.transform import Transformation as T
 from transforms3d.quaternions import *
 
+
 # robot params
-
-
 ee_fingertip_T_mat = np.array([[0.707, 0.707, 0, 0], [-0.707, 0.707, 0, 0], [0, 0, 1, 0.1034], [0, 0, 0, 1]])
 gripper_ft_trans = np.array([0.0, 0.019, 0.042192])
 
@@ -59,15 +58,12 @@ class ManipulatorSystem:
 
         # Reset to rest pose
         # self.rest_pose = self.pos_rz_to_pose((0.437, 0.0, 0), 0.4) # for robocraft
-        self.rest_pose = self.pos_rz_to_pose((0.4, 0.0, np.pi / 4), 0.4) # for robocook
+        self.rest_pose = self.pos_rz_to_pose((0.4, -0.1, np.pi / 4), 0.4) # for robocook
         self.rest_pos = self.rest_pose[0]
         self.rest_quat = self.rest_pose[1]
 
-        self.grip_speed = 0.1
-        self.grip_force = 50.0
-
-        # self.grip_speed = 0.05
-        # self.grip_force = 10.0
+        self.grip_speed = 0.05
+        self.grip_force = 10.0
 
         self.tool_status = {
             'circular_cutter': 'ready',
@@ -186,22 +182,17 @@ class ManipulatorSystem:
 
 
     def get_ee_pose(self):
-        ee_pos, ee_quat = self.arm.pose_ee()
-        ee_ori = np.array([ee_quat[3], ee_quat[0], ee_quat[1], ee_quat[2]])
-        gripper_width = self.gripper.get_state().width
-        # print(f"Current ee position: {ee_pos}")
-        # print(f"Current ee orientation: {ee_ori}  (wxyz)")
-        # print(f"Current gripper width: {gripper_width}")
-
+        ee_pos, ee_quat = self.arm.get_ee_pose()
+        
         ee_pose = Pose()
         ee_pose.position.x = ee_pos[0]
         ee_pose.position.y = ee_pos[1]
         ee_pose.position.z = ee_pos[2]
 
-        ee_pose.orientation.w = ee_ori[0]
-        ee_pose.orientation.x = ee_ori[1]
-        ee_pose.orientation.y = ee_ori[2]
-        ee_pose.orientation.z = ee_ori[3]
+        ee_pose.orientation.w = ee_quat[3]
+        ee_pose.orientation.x = ee_quat[0]
+        ee_pose.orientation.y = ee_quat[1]
+        ee_pose.orientation.z = ee_quat[2]
 
         return ee_pose
 
@@ -244,10 +235,10 @@ class ManipulatorSystem:
         if tool == 'gripper':
             self.take_away(grip_params=(0.47, 0.26, np.pi / 4), grip_h=0.315, pregrip_dh=0.01, grip_width=0.01, lift_dh=0.1, loc='left')
         elif tool == 'roller':
-            self.take_away(grip_params=(0.66, 0.19, -np.pi / 4), grip_h=0.325, pregrip_dh=0.01, grip_width=0.015)
+            self.take_away(grip_params=(0.66, 0.185, -np.pi / 4), grip_h=0.325, pregrip_dh=0.01, grip_width=0.015)
         elif tool == 'planar_cutter':
             self.take_away(grip_params=(0.66, 0.065, -np.pi / 4), grip_h=0.325, pregrip_dh=0.01, grip_width=0.015)
-        elif tool == 'circular_cutter':
+        elif tool == 'stamp':
             self.take_away(grip_params=(0.66, -0.1, -np.pi / 4), grip_h=0.325, pregrip_dh=0.01, grip_width=0.015)
         elif tool == 'shovel':
             self.take_away(grip_params=(0.66, -0.225, -np.pi / 4), grip_h=0.325, pregrip_dh=0.01, grip_width=0.015)
@@ -259,13 +250,13 @@ class ManipulatorSystem:
         if tool == 'gripper':
             self.put_back_gripper(grip_params=(0.467, 0.26, np.pi / 4), grip_h=0.315, pregrip_dh=0.03)
         elif tool == 'roller':
-            self.put_back(grip_params=(0.655, 0.19, -np.pi / 4), grip_h=0.32, pregrip_dh=0.015)
+            self.put_back(grip_params=(0.655, 0.19, -np.pi / 4), grip_h=0.325, pregrip_dh=0.015)
         elif tool == 'planar_cutter':
-            self.put_back(grip_params=(0.655, 0.065, -np.pi / 4), grip_h=0.32, pregrip_dh=0.015)
-        elif tool == 'circular_cutter':
-            self.put_back(grip_params=(0.655, -0.1, -np.pi / 4), grip_h=0.32, pregrip_dh=0.015)
+            self.put_back(grip_params=(0.655, 0.065, -np.pi / 4), grip_h=0.325, pregrip_dh=0.015)
+        elif tool == 'stamp':
+            self.put_back(grip_params=(0.655, -0.1, -np.pi / 4), grip_h=0.325, pregrip_dh=0.015)
         elif tool == 'shovel':
-            self.put_back(grip_params=(0.655, -0.225, -np.pi / 4), grip_h=0.32, pregrip_dh=0.015)
+            self.put_back(grip_params=(0.655, -0.225, -np.pi / 4), grip_h=0.325, pregrip_dh=0.015)
         else:
             raise NotImplementedError
 
@@ -444,7 +435,7 @@ class ManipulatorSystem:
         cut_pose = self.pos_rot_to_pose(cut_pos, cut_rot)
         self.move_to(*cut_pose)
 
-        # Cut
+        # Separate
         print("=> separate:")
         separate_pos = [cut_pos[0], cut_pos[1] + 0.05, cut_pos[2]]
         separate_pose = self.pos_rot_to_pose(separate_pos, cut_rot)
@@ -475,7 +466,8 @@ class ManipulatorSystem:
             time.sleep(0.2)
 
         # grip
-        self.close_gripper(grip_width, blocking=False, grip_params=(0.005, 1000))
+        self.close_gripper(grip_width, blocking=False, grip_params=(0.01, 150))
+
         # Release
         self.open_gripper()
         # Lift to pregrip
@@ -486,3 +478,56 @@ class ManipulatorSystem:
 
         print("=> back to pregrip:")
         self.move_to(*pregrip_pose)
+
+
+    def roll(self, start_pos, roll_rot, end_pos, preroll_dh, mode='explore'):
+        # Move to preroll
+        print("=> preroll:")
+        preroll_pos = [start_pos[0], start_pos[1], start_pos[2] + preroll_dh]
+        preroll_pose = self.pos_rot_to_pose(preroll_pos, roll_rot)
+        self.move_to(*preroll_pose)
+
+        if mode == 'explore':
+            self.signal_pub.publish(UInt8(1))
+            time.sleep(0.2)
+
+        # Press
+        print("=> press:")
+        press_pose = self.pos_rot_to_pose(start_pos, roll_rot)
+        self.move_to(*press_pose)
+
+        # Spread
+        print("=> spread:")
+        spread_pose = self.pos_rot_to_pose(end_pos, roll_rot)
+        self.move_to(*spread_pose)
+
+        if mode == 'explore':
+            self.signal_pub.publish(UInt8(0))
+            time.sleep(0.2)
+
+        print("=> back to preroll:")
+        self.move_to(*preroll_pose)
+
+
+    def press(self, press_pos, press_rot, prepress_dh, mode='explore'):
+        # Move to prepress
+        print("=> prepress:")
+        prepress_pos = [press_pos[0], press_pos[1], press_pos[2] + prepress_dh]
+        prepress_pose = self.pos_rot_to_pose(prepress_pos, press_rot)
+        self.move_to(*prepress_pose)
+
+        if mode == 'explore':
+            self.signal_pub.publish(UInt8(1))
+            time.sleep(0.2)
+
+        # Press
+        print("=> press:")
+        press_pose = self.pos_rot_to_pose(press_pos, press_rot)
+        self.move_to(*press_pose)
+
+        if mode == 'explore':
+            self.signal_pub.publish(UInt8(0))
+            time.sleep(0.2)
+
+        print("=> back to prepress:")
+        self.move_to(*prepress_pose)

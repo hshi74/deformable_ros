@@ -79,36 +79,6 @@ def grip_random():
         print("Interrupted by user.")
 
 
-def real_sim_remap(args, data, n_particle):
-    points = data[0]
-    # print(np.mean(points[:n_particle], axis=0), np.std(points[:n_particle], axis=0))
-    points = (points - np.mean(points[:n_particle], axis=0)) / np.std(points[:n_particle], axis=0)
-    points = np.array([points.T[0], points.T[2], points.T[1]]).T * args.std_p + args.mean_p
-
-    n_shapes_floor = 9
-    n_shapes_per_gripper = 11
-    prim1 = points[n_particle + n_shapes_floor + 2] # + n_shapes_per_gripper // 2
-    prim2 = points[n_particle + n_shapes_floor + n_shapes_per_gripper + 2]
-    new_floor = np.array([[0.25, 0., 0.25], [0.25, 0., 0.5], [0.25, 0., 0.75],
-                        [0.5, 0., 0.25], [0.5, 0., 0.5], [0.5, 0., 0.75],
-                        [0.75, 0., 0.25], [0.75, 0., 0.5], [0.75, 0., 0.75]])
-    new_prim1 = []
-    for j in range(11):
-        prim1_tmp = np.array([prim1[0], prim1[1] + 0.018 * (j - 5), prim1[2]])
-        new_prim1.append(prim1_tmp)
-    new_prim1 = np.stack(new_prim1)
-
-    new_prim2 = []
-    for j in range(11):
-        prim2_tmp = np.array([prim2[0], prim2[1] + 0.018 * (j - 5), prim2[2]])
-        new_prim2.append(prim2_tmp)
-
-    new_prim2 = np.stack(new_prim2)
-    new_state = np.concatenate([points[:n_particle], new_floor, new_prim1, new_prim2])
-
-    return new_state
-
-
 def sim_real_remap(init_pose_seq, act_seq):
     gripper_mid_point = int((init_pose_seq.shape[1] - 1) / 2)
     len_per_grip = 30

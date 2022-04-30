@@ -1,25 +1,24 @@
-import time
+import execute_actions
+import manipulate
 import numpy as np
 import os
-
+import random_explore
 import rosbag
 import rospy
-import ros_numpy
 import sys
-import tf
+import timeit
 import tf2_ros
 import yaml
 
 from datetime import datetime
 from message_filters import ApproximateTimeSynchronizer, Subscriber
-from geometry_msgs.msg import TransformStamped
-from sensor_msgs.msg import PointCloud2
-from std_msgs.msg import UInt8, Float32
 from timeit import default_timer as timer
 from transforms3d.quaternions import *
 
-import manipulate
-import execute_actions
+from geometry_msgs.msg import TransformStamped
+from sensor_msgs.msg import PointCloud2
+from std_msgs.msg import UInt8, Float32
+from robocook_ros.msg import RobotPose
 
 
 if len(sys.argv) < 2:
@@ -32,7 +31,9 @@ fixed_frame = 'panda_link0'
 num_cams = 4
 
 # task_name = 'cutting_pre_3-26'
-task_name = 'gripping_pre_4-18'
+# task_name = 'gripping_pre_4-21'
+# task_name = 'rolling_pre_4-29'
+task_name = 'pressing_pre_4-29'
 
 cd = os.path.dirname(os.path.realpath(sys.argv[0]))
 data_path = os.path.join(cd, '..', 'raw_data', task_name)
@@ -40,7 +41,7 @@ os.system('mkdir -p ' + f"{data_path}")
 
 # 0 -> uninitialized / pause; 1 -> start; 2 -> stop
 if mode == 'collect_data':
-    robot = manipulate.ManipulatorSystem()
+    robot = random_explore.robot
     signal = 0
 elif mode == 'record_result':
     robot = manipulate.ManipulatorSystem()
@@ -64,15 +65,16 @@ def main():
     rospy.init_node('point_cloud_writer', anonymous=True)
 
     iter_pub = rospy.Publisher('/iter', UInt8, queue_size=10)
+    # robot_pose_pub = rospy.Publisher('/robot_pose', RobotPose, queue_size=10)
     rospy.Subscriber("/signal", UInt8, signal_callback)
-
     tss = ApproximateTimeSynchronizer(
         (Subscriber("/cam1/depth/color/points", PointCloud2), 
         Subscriber("/cam2/depth/color/points", PointCloud2), 
         Subscriber("/cam3/depth/color/points", PointCloud2), 
         Subscriber("/cam4/depth/color/points", PointCloud2)),
-        queue_size=10,
-        slop=0.1
+        # Subscriber("/robot_pose", RobotPose)),
+        queue_size=100,
+        slop=0.2
     )
 
     tss.registerCallback(cloud_callback)
@@ -101,9 +103,19 @@ def main():
     # br = tf.TransformBroadcaster()
     rate = rospy.Rate(100)
     while not rospy.is_shutdown():
+        # t0 = timer()
+        # robot_pose_msg = RobotPose()
+        # robot_pose_msg.header.stamp = rospy.Time.now()
+        # robot_pose_msg.ee_pose = robot.get_ee_pose()
+        # robot_pose_msg.gripper_width = Float32(robot.gripper.get_state().width)
+
+        # robot_pose_pub.publish(robot_pose_msg)
+        # t1 = timer()
+        # print(f'Time taken to publish: {t1 - t0}')
+        
         if mode == 'correct_control':
             iter_pub.publish(UInt8(iter))
-        
+
         if signal == 2: break
         
         rate.sleep()
@@ -136,26 +148,36 @@ def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
                 time_start = cam1_msg.header.stamp.to_sec()
 
             time_now = cam1_msg.header.stamp.to_sec() - time_start
+            time_diff_1 = cam2_msg.header.stamp.to_sec() - time_start - time_now
+            time_diff_2 = cam3_msg.header.stamp.to_sec() - time_start - time_now
+            time_diff_3 = cam4_msg.header.stamp.to_sec() - time_start - time_now
+            # time_diff_4 = robot_pose_msg.header.stamp.to_sec() - time_start - time_now
             # print(time_now - time_last)
             if time_now == 0.0 or time_now - time_last > 0.1:
                 if mode == 'collect_data':
                     trial_path = os.path.join(data_path, str(trial).zfill(3))
                     os.system('mkdir -p ' + f"{trial_path}")
                     bag = rosbag.Bag(os.path.join(trial_path, f'{time_now:.3f}.bag'), 'w')
-                    print(f"Trial {trial}: recorded pcd at {time_now}...")
+                    print(f"Trial {trial}: recorded pcd at {round(time_now, 3)} " + \
+                        f"({round(time_diff_1, 3)}, {round(time_diff_2, 3)}, {round(time_diff_3, 3)})...")
                 else:
                     bag = rosbag.Bag(os.path.join(data_path, datetime_now, f'{time_now:.3f}.bag'), 'w')
                 
+                # t0 = timer()
                 bag.write('/cam1/depth/color/points', cam1_msg)
                 bag.write('/cam2/depth/color/points', cam2_msg)
                 bag.write('/cam3/depth/color/points', cam3_msg)
                 bag.write('/cam4/depth/color/points', cam4_msg)
 
+                # bag.write('/robot_pose', robot_pose_msg)
+                # t1 = timer()
                 ee_pose = robot.get_ee_pose()
                 bag.write('/ee_pose', ee_pose)
-                
+
                 gripper_width = robot.gripper.get_state().width
                 bag.write('/gripper_width', Float32(gripper_width))
+
+                # print(f'Time taken to write: {t1 - t0}')
 
                 bag.close()
 
@@ -175,6 +197,7 @@ def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
             bag.write('/cam3/depth/color/points', cam3_msg)
             bag.write('/cam4/depth/color/points', cam4_msg)
 
+            # bag.write('/robot_pose', robot_pose_msg)
             ee_pose = robot.get_ee_pose()
             bag.write('/ee_pose', ee_pose)
 

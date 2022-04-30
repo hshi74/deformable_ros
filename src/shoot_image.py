@@ -1,13 +1,7 @@
-from pickletools import uint8
-import time
-import numpy as np
 import os
 import readchar
-import rosbag
 import rospy
-import ros_numpy
 import sys
-import tf
 import tf2_ros
 import yaml
 import cv2
@@ -21,7 +15,7 @@ from std_msgs.msg import UInt8
 from timeit import default_timer as timer
 from transforms3d.quaternions import *
 
-tool_list = ['planar_cutter', 'asym_gripper', 'roller', 'stamp']
+tool_list = ['gripper_asym', 'roller', 'stamp', 'test']
 # init_shape_list = ['cube', 'rope', 'ball', 'plane', 'random']
 
 tool_idx = 3
@@ -31,7 +25,7 @@ fixed_frame = 'panda_link0'
 num_cams = 4
 
 cd = os.path.dirname(os.path.realpath(sys.argv[0]))
-prefix = os.path.join('tool_classification_pre_3-15', tool_list[tool_idx])
+prefix = os.path.join('tool_classification_pre_4-26', tool_list[tool_idx])
 image_path = os.path.join(cd, '..', 'raw_data', prefix)
 
 os.system('mkdir -p ' + f"{image_path}")

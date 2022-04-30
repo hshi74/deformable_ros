@@ -24,14 +24,13 @@ robot_bbox = [
 ]
 
 
-
 rest_pos = copy.deepcopy(robot.rest_pos)
 pos_curr = [*rest_pos]
 rot_curr = [0.0, 0.0, np.pi / 4]
 
 init_pos_stride = 0.02
 init_rot_stride = np.pi / 16
-init_width_stride = 0.01
+init_width_stride = 0.02
 manipulating = False
 
 # NEED TO initialize LT and RT before controllng with joystick
@@ -88,9 +87,10 @@ def joy_callback(msg):
         #     print(f'Waiting...')
         #     return
 
-        lb_ratio = np.min((pos_actual.numpy() - robot_bbox[0]) / (robot.rest_pos.numpy() - robot_bbox[0]))
-        ub_ratio = np.min((pos_actual.numpy() - robot_bbox[1]) / (robot.rest_pos.numpy() - robot_bbox[1]))
-        pos_stride = min(lb_ratio, ub_ratio) * init_pos_stride
+        # lb_ratio = np.min((pos_actual.numpy() - robot_bbox[0]) / (robot.rest_pos.numpy() - robot_bbox[0]))
+        # ub_ratio = np.min((pos_actual.numpy() - robot_bbox[1]) / (robot.rest_pos.numpy() - robot_bbox[1]))
+        # pos_stride = min(lb_ratio, ub_ratio) * init_pos_stride
+        pos_stride = init_pos_stride
         # print(f"lower: {lb_ratio}; upper: {ub_ratio}; stride: {pos_stride}")
 
         if manipulating:
@@ -117,8 +117,18 @@ def joy_callback(msg):
         # up / down
         if msg.axes[7]:
             print(f"========== moving on {'+' if msg.axes[7] > 0 else '-'}z ==========")
-            pos_curr[2] += msg.axes[7] / abs(msg.axes[7]) * pos_stride
-        
+            
+            if msg.axes[7] > 0:
+                time_to_go = 2.0
+                pos_curr[2] = 0.5
+            elif pos_curr[2] > 0.3:
+                time_to_go = 2.0
+                pos_curr[2] = 0.3
+            else:
+                pos_curr[2] += msg.axes[7] / abs(msg.axes[7]) * pos_stride
+                # time_to_go = 2.0
+                # pos_curr[2] = 0.18
+
         # left / right
         if msg.axes[6]:
             if msg.axes[2] == 1.0 and msg.axes[5] == 1.0:
@@ -165,7 +175,7 @@ def joy_callback(msg):
 
             # customized grip_speed and grip_force
             width = width_cur - init_width_stride
-            if width >= 0.0:
+            if width >= 0.01:
                 robot.close_gripper(width, blocking=False, grip_params=(0.01, 50.0))
 
     elif msg.axes[0]:
