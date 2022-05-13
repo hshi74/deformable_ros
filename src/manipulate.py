@@ -1,15 +1,14 @@
-# Copyright (c) Facebook, Inc. and its affiliates.
-#
-# This source code is licensed under the MIT license found in the
-# LICENSE file in the root directory of this source tree.
-
 import numpy as np
+import os
 import rospy
 import tempfile
 import time
 import torch
-torch.set_printoptions(precision=4, profile='short', sci_mode=False)
 import torchcontrol as toco
+import sys
+import yaml
+
+torch.set_printoptions(precision=4, profile='short', sci_mode=False)
 
 from geometry_msgs.msg import Pose
 from polymetis import RobotInterface, GripperInterface
@@ -32,8 +31,6 @@ class ManipulatorSystem:
             ip_address="192.168.0.2",
             enforce_version=False,
         )
-
-        # self.update_urdf("/scr/hxu/catkin_ws/src/robocook_ros/urdf/panda_arm_hand.urdf")
 
         self.gain_dict = {
             'low': {
@@ -62,18 +59,24 @@ class ManipulatorSystem:
         self.rest_pos = self.rest_pose[0]
         self.rest_quat = self.rest_pose[1]
 
-        self.grip_speed = 0.05
+        self.grip_speed = 0.1
         self.grip_force = 10.0
 
-        self.tool_status = {
-            'circular_cutter': 'ready',
-            'gripper': 'ready',
-            'hook': 'ready',
-            'planar_cutter': 'ready',
-            'roller': 'ready',
-            'shovel': 'ready',
-            'stamp': 'ready',
-        }
+        cd = os.path.dirname(os.path.realpath(sys.argv[0]))
+        self.tool_status_path = os.path.join(cd, '..', 'env', 'tool_status.yml')
+        if os.path.exists(self.tool_status_path):
+            with open(self.tool_status_path, 'r') as f:
+                self.tool_status = yaml.load(f, Loader=yaml.FullLoader)
+        else:
+            self.tool_status = {
+                'circular_cutter': 'ready',
+                'gripper': 'ready',
+                'hook': 'ready',
+                'planar_cutter': 'ready',
+                'roller': 'ready',
+                'shovel': 'ready',
+                'stamp': 'ready',
+            }
 
         # self.reset()
 
@@ -245,6 +248,9 @@ class ManipulatorSystem:
         else:
             raise NotImplementedError
 
+        with open(self.tool_status_path, 'w') as f:
+            yaml.dump(self.tool_status, f)
+
 
     def put_back_tool(self, tool):
         if tool == 'gripper':
@@ -259,6 +265,9 @@ class ManipulatorSystem:
             self.put_back(grip_params=(0.655, -0.225, -np.pi / 4), grip_h=0.325, pregrip_dh=0.015)
         else:
             raise NotImplementedError
+
+        with open(self.tool_status_path, 'w') as f:
+            yaml.dump(self.tool_status, f)
 
 
     def take_away(self, grip_params, grip_h, pregrip_dh, grip_width, lift_dh=0.01, loc='front', debug=False):
@@ -456,17 +465,17 @@ class ManipulatorSystem:
         pregrip_pose = self.pos_rz_to_pose(grip_params, grip_h + pregrip_dh)
         self.move_to(*pregrip_pose)
 
-        # Lower (slower than other motions to prevent sudden collisions)
+        # Lower
         print("=> grip:")
         grip_pose = self.pos_rz_to_pose(grip_params, grip_h)
-        self.move_to(*grip_pose)
+        self.move_to(*grip_pose, time_to_go=1.0)
 
         if mode == 'explore':
             self.signal_pub.publish(UInt8(1))
-            time.sleep(0.2)
+            time.sleep(0.1)
 
         # grip
-        self.close_gripper(grip_width, blocking=False, grip_params=(0.01, 150))
+        self.close_gripper(grip_width, blocking=False, grip_params=(0.02, 150))
 
         # Release
         self.open_gripper()
@@ -474,7 +483,7 @@ class ManipulatorSystem:
         
         if mode == 'explore':
             self.signal_pub.publish(UInt8(0))
-            time.sleep(0.2)
+            time.sleep(0.1)
 
         print("=> back to pregrip:")
         self.move_to(*pregrip_pose)
@@ -489,7 +498,7 @@ class ManipulatorSystem:
 
         if mode == 'explore':
             self.signal_pub.publish(UInt8(1))
-            time.sleep(0.2)
+            time.sleep(0.1)
 
         # Press
         print("=> press:")
@@ -503,7 +512,7 @@ class ManipulatorSystem:
 
         if mode == 'explore':
             self.signal_pub.publish(UInt8(0))
-            time.sleep(0.2)
+            time.sleep(0.1)
 
         print("=> back to preroll:")
         self.move_to(*preroll_pose)

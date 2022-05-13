@@ -84,7 +84,7 @@ def main():
 
     tss.registerCallback(image_callback)
 
-    with open(os.path.join(os.path.join(cd, '..', 'env'), 'camera_pose_world.yml'), 'r') as f:
+    with open(os.path.join(cd, '..', 'env', 'camera_pose_world.yml'), 'r') as f:
         camera_pose_dict = yaml.load(f, Loader=yaml.FullLoader)
     
     static_br = tf2_ros.StaticTransformBroadcaster()

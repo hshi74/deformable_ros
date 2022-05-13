@@ -1,4 +1,5 @@
 import execute_actions
+import glob
 import manipulate
 import numpy as np
 import os
@@ -30,10 +31,10 @@ mode = sys.argv[1] # collect_data, record_result, or correct_control
 fixed_frame = 'panda_link0'
 num_cams = 4
 
-# task_name = 'cutting_pre_3-26'
-# task_name = 'gripping_pre_4-21'
-# task_name = 'rolling_pre_4-29'
-task_name = 'pressing_pre_4-29'
+# task_name = 'gripping_sym_robot_v1'
+# task_name = 'gripping_asym_robot_v1'
+# task_name = 'rolling_small_robot_v1'
+task_name = 'pressing_large_robot_v1'
 
 cd = os.path.dirname(os.path.realpath(sys.argv[0]))
 data_path = os.path.join(cd, '..', 'raw_data', task_name)
@@ -132,7 +133,13 @@ def signal_callback(msg):
 time_start = 0.0
 time_last = 0.0
 time_now = 0.0
-trial = 0
+time_delta = 0.1
+
+data_list = sorted(glob.glob(os.path.join(data_path, '*')))
+if len(data_list) == 0:
+    trial = 0
+else:
+    trial = int(os.path.basename(data_list[-1]).lstrip('0')) + 1
 
 def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
     global signal
@@ -153,7 +160,7 @@ def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
             time_diff_3 = cam4_msg.header.stamp.to_sec() - time_start - time_now
             # time_diff_4 = robot_pose_msg.header.stamp.to_sec() - time_start - time_now
             # print(time_now - time_last)
-            if time_now == 0.0 or time_now - time_last > 0.1:
+            if time_now == 0.0 or time_now - time_last > time_delta:
                 if mode == 'collect_data':
                     trial_path = os.path.join(data_path, str(trial).zfill(3))
                     os.system('mkdir -p ' + f"{trial_path}")

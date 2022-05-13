@@ -3,7 +3,6 @@ import time
 import numpy as np
 import os
 
-import open3d as o3d
 import readchar
 import rosbag
 import rospy

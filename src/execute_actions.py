@@ -1,146 +1,27 @@
-# Copyright (c) Facebook, Inc. and its affiliates.
-#
-# This source code is licensed under the MIT license found in the
-# LICENSE file in the root directory of this source tree.
-
 import glob
 import numpy as np
 import os
+import readchar
 import rospy
-import torch
+import sys
 
 from rospy_tutorials.msg import Floats
 from rospy.numpy_msg import numpy_msg
 from sensor_msgs.msg import PointCloud2
-from std_msgs.msg import UInt8
+from std_msgs.msg import UInt8, String
 from timeit import default_timer as timer
 from transforms3d.quaternions import *
 
-from manipulate import ManipulatorSystem
+import manipulate
 
-# grip params
-n_grips = 3
+robot = manipulate.ManipulatorSystem()
 
-p_mid_point = np.array([0.437, 0.0])
-p_noise_scale = 0.005
-rest_pose = ([p_mid_point[0], 0.0, 0.6], [1.0, 0.0, 0.0, 0.0])
-plasticine_grip_h = 0.1034 + 0.075 + 0.06 # ee_to_finger + finger_to_bot + cube_h + extra
-plasticine_pregrip_dh = 0.1
-
-planner_dt = 0.02
-
-ee_fingertip_T_mat = np.array([[0.707, 0.707, 0, 0], [-0.707, 0.707, 0, 0], [0, 0, 1, 0.1034], [0, 0, 0, 1]])
-gripper_ft_trans = np.array([0.0, 0.019, 0.042192])
-
-
-def random_pose(rot_prev, i):
-    p_noise_x = p_noise_scale * (np.random.rand() * 2 - 1)
-    p_noise_y = p_noise_scale * (np.random.rand() * 2 - 1)
-
-    rot_noise = np.random.uniform(-np.pi, np.pi)
-    
-    if rot_noise > np.pi / 2:
-            rot_noise -= np.pi
-    elif rot_noise < -np.pi / 2:
-        rot_noise += np.pi
-
-    # if i < n_grips - 1:
-    #     rot_noise = np.pi / 2
-    # else:
-    #     rot_noise = np.random.uniform(-np.pi, 0)
-    # rot_curr = rot_prev + rot_noise
-
-    # x, y, rz
-    return p_mid_point[0] + p_noise_x, p_mid_point[1] + p_noise_y, rot_noise
-
-
-def grip_random():
-    # Perform griping
-    i = 0
-    rot_curr = np.random.uniform(-np.pi / 2, 0)
-    try:
-        while True:
-            # Sample grip
-            grip_params = random_pose(rot_curr, i)
-            rot_curr = grip_params[-1]
-
-            # Perform grip
-            print(f"========== grip {i+1} ==========")
-            robot.grip(grip_params, plasticine_grip_h, plasticine_pregrip_dh)
-
-            # Loop termination
-            i += 1
-            if n_grips > 0 and i >= n_grips:
-                robot.reset()
-                robot.signal_pub.publish(UInt8(2))
-                break
-
-    except KeyboardInterrupt:
-        print("Interrupted by user.")
-
-
-def sim_real_remap(init_pose_seq, act_seq):
-    gripper_mid_point = int((init_pose_seq.shape[1] - 1) / 2)
-    len_per_grip = 30
-    sim_tool_size = 0.045
-    robot_tool_size = 0.009
-    sim_mean_p = np.array([0.5, 0.11348496, 0.5])
-    sim_std_p = np.array([0.06, 0.04888084, 0.06])
-
-    grip_params_list = []
-    grip_width_list = []
-    for i in range(init_pose_seq.shape[0]):
-        rot_z = np.arctan2(init_pose_seq[i, gripper_mid_point, 9] - init_pose_seq[i, gripper_mid_point, 2], 
-            init_pose_seq[i, gripper_mid_point, 7] - init_pose_seq[i, gripper_mid_point, 0]) + np.pi / 2 - np.pi / 4
-
-        if rot_z > np.pi / 2:
-            rot_z -= np.pi
-        elif rot_z < -np.pi / 2:
-            rot_z += np.pi
-
-        gripper_grip_pos_1 = init_pose_seq[i, gripper_mid_point, :3] + 0.02 * (np.sum(act_seq[i, :len_per_grip, :3], axis=0))
-        if np.linalg.norm(act_seq[i, 0, :3]) > 0:
-            gripper_grip_pos_1 += sim_tool_size * act_seq[i, 0, :3] / np.linalg.norm(act_seq[i, 0, :3])
-        gripper_grip_pos_2 = init_pose_seq[i, gripper_mid_point, 7:10] + 0.02 * (np.sum(act_seq[i, :len_per_grip, 6:9], axis=0))
-        if np.linalg.norm(act_seq[i, 0, 6:9]) > 0:
-            gripper_grip_pos_2 += sim_tool_size * act_seq[i, 0, 6:9] / np.linalg.norm(act_seq[i, 0, 6:9])
-
-        gripper_init_pos_1 = (init_pose_seq[i, gripper_mid_point, :3] - sim_mean_p) / sim_std_p
-        gripper_init_pos_1 = np.array([gripper_init_pos_1[0], gripper_init_pos_1[2], gripper_init_pos_1[1]]) * p_stats[3:] + p_stats[:3]
-        gripper_init_pos_2 = (init_pose_seq[i, gripper_mid_point, 7:10] - sim_mean_p) / sim_std_p
-        gripper_init_pos_2 = np.array([gripper_init_pos_2[0], gripper_init_pos_2[2], gripper_init_pos_2[1]]) * p_stats[3:] + p_stats[:3]
-
-        gripper_grip_pos_1 = (gripper_grip_pos_1 - sim_mean_p) / sim_std_p
-        gripper_grip_pos_1 = np.array([gripper_grip_pos_1[0], gripper_grip_pos_1[2], gripper_grip_pos_1[1]]) * p_stats[3:] + p_stats[:3]
-        gripper_grip_pos_2 = (gripper_grip_pos_2 - sim_mean_p) / sim_std_p
-        gripper_grip_pos_2 = np.array([gripper_grip_pos_2[0], gripper_grip_pos_2[2], gripper_grip_pos_2[1]]) * p_stats[3:] + p_stats[:3]
-
-        mid_point = (gripper_init_pos_1 + gripper_init_pos_2) / 2
-
-        grip_width = np.linalg.norm(gripper_grip_pos_1 - gripper_grip_pos_2)
-        grip_width = grip_width + 2 * robot_tool_size - 2 * gripper_ft_trans[1]
-        grip_width_list.append(grip_width)
-
-        grip_params_list.append((mid_point[0], mid_point[1], rot_z))
-
-    # x, y, rz
-    return grip_params_list, grip_width_list
-
-
-def replay(path):
-    act_seq_path_list = sorted(glob.glob(os.path.join(path, 'act_seq_*')))
-    init_pose_seq_path_list = sorted(glob.glob(os.path.join(path, 'init_pose_seq_*')))
-    init_pose_seq_replay = []
-    act_seq_replay = []
-    for act_seq_path, init_pose_seq_path in zip(act_seq_path_list, init_pose_seq_path_list):
-        init_pose_seq = np.load(init_pose_seq_path, allow_pickle=True)
-        act_seq = np.load(act_seq_path, allow_pickle=True)
-        for i in range(init_pose_seq.shape[0]):
-            init_pose_seq_replay.append(init_pose_seq[i])
-            act_seq_replay.append(act_seq[i][:30])
-
-    return np.stack(init_pose_seq_replay), np.stack(act_seq_replay)
-
+task_tool_mapping = {
+    'cutting': 'planar_cutter', 
+    'gripping': 'gripper', 
+    'rolling': 'roller', 
+    'pressing': 'stamp',
+}
 
 init_pose_seq = None
 def init_pose_seq_callback(msg):
@@ -152,86 +33,158 @@ def act_seq_callback(msg):
     global act_seq
     act_seq = msg.data.reshape(-1, 30, 12)
 
-p_stats = None
-def p_stats_callback(msg):
-    global p_stats
-    p_stats = msg.data
-    print(f"p_stats: {p_stats}")
-
 iter = 0
 def iter_callback(msg):
     global iter
     iter = msg.data
 
+command_str = ''
+def command_callback(msg):
+    global command_str
+    command_str = msg.data
 
-def grip_as_plan(mode):
+
+def main():
+    global robot
     global init_pose_seq
     global act_seq
-    global p_stats
-
     global iter
-    
-    control_out_dir = "/scr/hxu/projects/RoboCook/dump/control/control_ngrip_fixed/alphabet/X/fem_predict_n=5_h=2_CEM_chamfer_emd_h_corr"
-    
-    print(f"Mode: {mode}")
-    if mode == "react":
-        pass
-    elif mode == 'transfer':
-        p_stats = np.load(f"/scr/hxu/projects/RoboCook/misc/raw_data/p_stats.npy", allow_pickle=True)
-        init_pose_seq = np.load(f"{control_out_dir}/best_init_pose_seq.npy", allow_pickle=True)
-        act_seq = np.load(f"{control_out_dir}/best_act_seq.npy", allow_pickle=True)
-    elif mode == 'replay':
-        p_stats = np.load(f"{control_out_dir}/p_stats.npy", allow_pickle=True)
-        init_pose_seq, act_seq = replay(control_out_dir)
-    else:
-        raise NotImplementedError
+    global task_type
+    global command_str
+
+    if len(sys.argv) < 2:
+        print("Please enter the mode!")
+        return
+
+    rospy.init_node('execute_actions', anonymous=True)
 
     rospy.Subscriber("/init_pose_seq", numpy_msg(Floats), init_pose_seq_callback)
     rospy.Subscriber("/act_seq", numpy_msg(Floats), act_seq_callback)
-    rospy.Subscriber("/p_stats", numpy_msg(Floats), p_stats_callback)
     rospy.Subscriber("/iter", UInt8, iter_callback)
+    rospy.Subscriber("/command", String, command_callback)
 
-    # Perform griping
-    rate = rospy.Rate(1)
+    mode = sys.argv[1]
+    if mode == 'react':
+        react()
+    elif mode == 'replay':
+        result_dir = readchar.readkey()
+        if os.path.exists(result_dir):
+            best_init_pose_seq = np.load(f"{result_dir}/best_init_pose_seq.npy", allow_pickle=True)
+            best_act_seq = np.load(f"{result_dir}/best_act_seq.npy", allow_pickle=True)
+            for task_name in task_tool_mapping.keys():
+                if task_name in result_dir:
+                    execute(task_name, best_init_pose_seq, best_act_seq)
+                    break
+        else:
+            print("Result directory doesn't exist!")
+    else:
+        raise NotImplementedError
+
+
+def execute(task_name, init_pose_seq, act_seq):
+    if 'gripping' in task_name:
+        mid_point = (init_pose_seq.shape[1] - 1) // 2
+        grip_h = 0.175
+        pregrip_dh = 0.1
+        for i in range(init_pose_seq.shape[0]):
+            grip_pos = (init_pose_seq[i, mid_point, :3] + init_pose_seq[i, mid_point, 3:]) / 2
+
+            rot_z = np.arctan2(init_pose_seq[i, mid_point, 8] - init_pose_seq[i, mid_point, 1], 
+                init_pose_seq[i, mid_point, 7] - init_pose_seq[i, mid_point, 0]) + np.pi / 4
+
+            if rot_z > np.pi / 2:
+                rot_z -= np.pi
+            elif rot_z < -np.pi / 2:
+                rot_z += np.pi
+
+            end_pos_1 = init_pose_seq[i, mid_point, :3] + np.sum(act_seq[i, :, :3], axis=0)
+            end_pos_2 = init_pose_seq[i, mid_point, 3:] + np.sum(act_seq[i, :, 6:9], axis=0)
+
+            if 'asym' in task_name:
+                grip_width = np.linalg.norm(end_pos_1 - end_pos_2) - 0.035521
+            else:
+                grip_width = np.linalg.norm(end_pos_1 - end_pos_2) - 0.038632
+
+            robot.grip((grip_pos[0], grip_pos[1], rot_z), grip_h, pregrip_dh, grip_width)
+
+    elif 'rolling' in task_name:
+        preroll_dh = 0.07
+        for i in range(init_pose_seq.shape[0]):
+                rot_noise = np.random.uniform(-np.pi, np.pi)
+    if rot_noise > np.pi / 2:
+        rot_noise -= np.pi
+    elif rot_noise < -np.pi / 2:
+        rot_noise += np.pi
+
+    roll_rot = [0.0, 0.0, rot_noise]
+    roll_dist = 0.03 + roll_dist_noise_scale * np.random.rand()
+    roll_delta = axangle2mat([0, 0, 1], roll_rot[2] + np.pi / 4) @ np.array([roll_dist, 0, 0]).T
+            robot.roll(start_pos, roll_rot, end_pos, preroll_dh)
+
+    elif 'pressing' in task_name:
+        robot.press(press_pos, press_rot, prepress_dh)
+    else:
+        raise NotImplementedError
+
+
+def react():
+    rate = rospy.Rate(100)
     while not rospy.is_shutdown():
-        # print("Spinning...")
-        if not (init_pose_seq is None or act_seq is None):
-            print(init_pose_seq.shape, act_seq.shape)
-            grip_params_list, grip_width_list = sim_real_remap(init_pose_seq, act_seq)
-            print(grip_params_list, grip_width_list)
-
-            if mode == "replay":
-                robot.signal_pub.publish(UInt8(1))
-
-            for i in range(len(grip_params_list)):
-                # Perform grip
-                # last = i == len(grip_params_list) - 1
-                print(grip_params_list[i], plasticine_grip_h, plasticine_pregrip_dh, grip_width_list[i])
-                robot.grip(grip_params_list[i], plasticine_grip_h, plasticine_pregrip_dh, 
-                            grip_width_list[i], mode=mode)
-
-            robot.reset()
-
-            init_pose_seq = None
-            act_seq = None
-
-            if mode == "replay":
-                robot.signal_pub.publish(UInt8(0))
-            
-            if mode == "react":
-                robot.signal_pub.publish(UInt8(1))
+        if len(command) != 0:
+            command_list = command_str.split('_')
+            command = command_list[0]
+            if command == 'start':
+                # take away the tool
+                tool = task_tool_mapping[command_list[1]]
+                if robot.tool_status[tool] == 'ready':
+                    print(f"========== taking away {tool} ==========")
+                    robot.take_away_tool(tool)
+                    robot.tool_status[tool] = 'using'
+                else:
+                    print(f"========== ERROR: {tool} is being used! ==========")
+            elif command == 'do':
+                task_name = command_list[1]
+                if init_pose_seq is not None and act_seq is not None:
+                    execute(task_name, init_pose_seq, act_seq)
+                else:
+                    print("========== ERROR: Please publish init_pose_seq and act_seq ==========")
+            elif command == 'switch':
+                done = False
+                for tool, status in robot.tool_status.items():
+                    if status == 'using':
+                        print(f"========== putting back {tool} ==========")
+                        robot.put_back_tool(tool)
+                        robot.tool_status[tool] = 'ready'
+                        done = True
+                        break
+                
+                if not done:
+                    print("========== ERROR: No tool is being used! ==========")
+                    continue
+                
+                tool = task_tool_mapping[command_list[1]]
+                if robot.tool_status[tool] == 'ready':
+                    print(f"========== taking away {tool} ==========")
+                    robot.take_away_tool(tool)
+                    robot.tool_status[tool] = 'using'
+                else:
+                    print(f"========== ERROR: {tool} is being used! ==========")
+            elif command == 'end':
+                done = False
+                for tool, status in robot.tool_status.items():
+                    if status == 'using':
+                        print(f"========== putting back {tool} ==========")
+                        robot.put_back_tool(tool)
+                        robot.tool_status[tool] = 'ready'
+                        done = True
+                        break
+                
+                if not done:
+                    print("========== ERROR: No tool is being used! ==========")
+            else:
+                print('========== ERROR: Unrecoganized command! ==========')
 
         rate.sleep()
-
-
-# Initialize interfaces
-robot = ManipulatorSystem()
-def main():
-    global robot
-
-    rospy.init_node('grip', anonymous=True)
-
-    grip_as_plan('transfer')
 
 
 if __name__ == "__main__":
