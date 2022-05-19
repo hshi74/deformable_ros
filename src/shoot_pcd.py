@@ -26,7 +26,7 @@ if len(sys.argv) < 2:
     print("Please enter the mode!")
     exit()
 
-mode = sys.argv[1] # collect_data, record_result, or correct_control
+mode = sys.argv[1] # explore, record, or control
 
 fixed_frame = 'panda_link0'
 num_cams = 4
@@ -40,25 +40,25 @@ cd = os.path.dirname(os.path.realpath(sys.argv[0]))
 data_path = os.path.join(cd, '..', 'raw_data', task_name)
 os.system('mkdir -p ' + f"{data_path}")
 
+with open(os.path.join(os.path.join(cd, '..', 'env'), 'camera_pose_world.yml'), 'r') as f:
+    cam_pose_dict = yaml.load(f, Loader=yaml.FullLoader)
+
 # 0 -> uninitialized / pause; 1 -> start; 2 -> stop
-if mode == 'collect_data':
+if mode == 'explore':
     robot = random_explore.robot
     signal = 0
-elif mode == 'record_result':
+elif mode == 'record':
     robot = manipulate.ManipulatorSystem()
     datetime_now = datetime.now().strftime("%d-%b-%Y-%H:%M:%S.%f")
     os.system('mkdir -p ' + f"{os.path.join(data_path, datetime_now)}")
     signal = 0
-elif mode == 'correct_control':
+elif mode == 'control':
     robot = execute_actions.robot
     datetime_now = datetime.now().strftime("%d-%b-%Y-%H:%M:%S.%f")
     os.system('mkdir -p ' + f"{os.path.join(data_path, datetime_now)}")
     signal = 1
 else:
     raise NotImplementedError
-
-with open(os.path.join(os.path.join(cd, '..', 'env'), 'camera_pose_world.yml'), 'r') as f:
-    cam_pose_dict = yaml.load(f, Loader=yaml.FullLoader)
 
 
 def main():
@@ -114,7 +114,7 @@ def main():
         # t1 = timer()
         # print(f'Time taken to publish: {t1 - t0}')
         
-        if mode == 'correct_control':
+        if mode == 'control':
             iter_pub.publish(UInt8(iter))
 
         if signal == 2: break
@@ -149,7 +149,7 @@ def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
     global trial
     global iter
 
-    if mode == 'collect_data' or mode == 'record_result' :
+    if mode == 'explore' or mode == 'record' :
         if signal == 1:
             if time_start == 0.0:
                 time_start = cam1_msg.header.stamp.to_sec()
@@ -161,7 +161,7 @@ def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
             # time_diff_4 = robot_pose_msg.header.stamp.to_sec() - time_start - time_now
             # print(time_now - time_last)
             if time_now == 0.0 or time_now - time_last > time_delta:
-                if mode == 'collect_data':
+                if mode == 'explore':
                     trial_path = os.path.join(data_path, str(trial).zfill(3))
                     os.system('mkdir -p ' + f"{trial_path}")
                     bag = rosbag.Bag(os.path.join(trial_path, f'{time_now:.3f}.bag'), 'w')
@@ -190,13 +190,13 @@ def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
 
                 time_last = time_now
 
-        if mode == 'collect_data' and signal == 0 and time_start > 0:
+        if mode == 'explore' and signal == 0 and time_start > 0:
             trial += 1
             time_start = 0.0
             time_last = 0.0
             time_now = 0.0
 
-    elif mode == 'correct_control':
+    elif mode == 'control':
         if signal == 1:
             bag = rosbag.Bag(os.path.join(data_path, datetime_now, f'state_{iter}.bag'), 'w')
             bag.write('/cam1/depth/color/points', cam1_msg)

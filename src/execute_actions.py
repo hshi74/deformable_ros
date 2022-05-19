@@ -1,4 +1,3 @@
-import glob
 import numpy as np
 import os
 import readchar
@@ -10,6 +9,8 @@ from rospy.numpy_msg import numpy_msg
 from sensor_msgs.msg import PointCloud2
 from std_msgs.msg import UInt8, String
 from timeit import default_timer as timer
+
+from transforms3d.axangles import axangle2mat
 from transforms3d.quaternions import *
 
 import manipulate
@@ -23,15 +24,11 @@ task_tool_mapping = {
     'pressing': 'stamp',
 }
 
-init_pose_seq = None
-def init_pose_seq_callback(msg):
-    global init_pose_seq
-    init_pose_seq = msg.data.reshape(-1, 11, 14)
-
-act_seq = None
-def act_seq_callback(msg):
-    global act_seq
-    act_seq = msg.data.reshape(-1, 30, 12)
+param_seq = None
+def param_seq_callback(msg):
+    global param_seq
+    # first number is n_actions
+    param_seq = msg.data[1:].reshape(msg.data[0], -1)
 
 iter = 0
 def iter_callback(msg):
@@ -58,8 +55,7 @@ def main():
 
     rospy.init_node('execute_actions', anonymous=True)
 
-    rospy.Subscriber("/init_pose_seq", numpy_msg(Floats), init_pose_seq_callback)
-    rospy.Subscriber("/act_seq", numpy_msg(Floats), act_seq_callback)
+    rospy.Subscriber("/param_seq", numpy_msg(Floats), param_seq_callback)
     rospy.Subscriber("/iter", UInt8, iter_callback)
     rospy.Subscriber("/command", String, command_callback)
 
@@ -81,48 +77,31 @@ def main():
         raise NotImplementedError
 
 
-def execute(task_name, init_pose_seq, act_seq):
+def execute(task_name, param_seq):
     if 'gripping' in task_name:
-        mid_point = (init_pose_seq.shape[1] - 1) // 2
-        grip_h = 0.175
-        pregrip_dh = 0.1
-        for i in range(init_pose_seq.shape[0]):
-            grip_pos = (init_pose_seq[i, mid_point, :3] + init_pose_seq[i, mid_point, 3:]) / 2
-
-            rot_z = np.arctan2(init_pose_seq[i, mid_point, 8] - init_pose_seq[i, mid_point, 1], 
-                init_pose_seq[i, mid_point, 7] - init_pose_seq[i, mid_point, 0]) + np.pi / 4
-
-            if rot_z > np.pi / 2:
-                rot_z -= np.pi
-            elif rot_z < -np.pi / 2:
-                rot_z += np.pi
-
-            end_pos_1 = init_pose_seq[i, mid_point, :3] + np.sum(act_seq[i, :, :3], axis=0)
-            end_pos_2 = init_pose_seq[i, mid_point, 3:] + np.sum(act_seq[i, :, 6:9], axis=0)
-
-            if 'asym' in task_name:
-                grip_width = np.linalg.norm(end_pos_1 - end_pos_2) - 0.035521
-            else:
-                grip_width = np.linalg.norm(end_pos_1 - end_pos_2) - 0.038632
-
-            robot.grip((grip_pos[0], grip_pos[1], rot_z), grip_h, pregrip_dh, grip_width)
-
-    elif 'rolling' in task_name:
-        preroll_dh = 0.07
-        for i in range(init_pose_seq.shape[0]):
-                rot_noise = np.random.uniform(-np.pi, np.pi)
-    if rot_noise > np.pi / 2:
-        rot_noise -= np.pi
-    elif rot_noise < -np.pi / 2:
-        rot_noise += np.pi
-
-    roll_rot = [0.0, 0.0, rot_noise]
-    roll_dist = 0.03 + roll_dist_noise_scale * np.random.rand()
-    roll_delta = axangle2mat([0, 0, 1], roll_rot[2] + np.pi / 4) @ np.array([roll_dist, 0, 0]).T
-            robot.roll(start_pos, roll_rot, end_pos, preroll_dh)
-
+        for i in range(len(param_seq)):
+            grip_h = 0.175
+            pregrip_dh = 0.1
+            grip_pos_x, grip_pos_y, rot_noise, grip_width = param_seq[i]
+            print(f'===== Grip {i+1}: {param_seq[i]} =====')
+            robot.grip((grip_pos_x, grip_pos_y, rot_noise), grip_h, pregrip_dh, grip_width)
     elif 'pressing' in task_name:
-        robot.press(press_pos, press_rot, prepress_dh)
+        for i in range(len(param_seq)):
+            prepress_dh = 0.1
+            press_pos_x, press_pos_y, press_pos_z, rot_noise = param_seq[i]
+            press_pos = []
+            print(f'===== Press {i+1}: {param_seq[i]} =====')
+            robot.press((press_pos_x, press_pos_y, press_pos_z), rot_noise, prepress_dh)
+    elif 'rolling' in task_name:
+        for i in range(len(param_seq)):
+            preroll_dh = 0.07
+            roll_pos_x, roll_pos_y, roll_pos_z, rot_noise, roll_dist = param_seq[i]
+            start_pos = [roll_pos_x, roll_pos_y, roll_pos_z]
+            roll_rot = [0.0, 0.0, rot_noise]
+            roll_delta = axangle2mat([0, 0, 1], roll_rot[2] + np.pi / 4) @ np.array([roll_dist, 0, 0]).T
+            end_pos = start_pos + roll_delta
+            print(f'===== Roll {i+1}: {param_seq[i]} =====')
+            robot.roll(start_pos, roll_rot, end_pos, preroll_dh)
     else:
         raise NotImplementedError
 
