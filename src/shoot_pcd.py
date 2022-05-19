@@ -12,114 +12,12 @@ import tf2_ros
 import yaml
 
 from datetime import datetime
+from geometry_msgs.msg import TransformStamped
 from message_filters import ApproximateTimeSynchronizer, Subscriber
+from sensor_msgs.msg import PointCloud2
+from std_msgs.msg import UInt8, Float32, String
 from timeit import default_timer as timer
 from transforms3d.quaternions import *
-
-from geometry_msgs.msg import TransformStamped
-from sensor_msgs.msg import PointCloud2
-from std_msgs.msg import UInt8, Float32
-from robocook_ros.msg import RobotPose
-
-
-if len(sys.argv) < 2:
-    print("Please enter the mode!")
-    exit()
-
-mode = sys.argv[1] # explore, record, or control
-
-fixed_frame = 'panda_link0'
-num_cams = 4
-
-# task_name = 'gripping_sym_robot_v1'
-# task_name = 'gripping_asym_robot_v1'
-# task_name = 'rolling_small_robot_v1'
-task_name = 'pressing_large_robot_v1'
-
-cd = os.path.dirname(os.path.realpath(sys.argv[0]))
-data_path = os.path.join(cd, '..', 'raw_data', task_name)
-os.system('mkdir -p ' + f"{data_path}")
-
-with open(os.path.join(os.path.join(cd, '..', 'env'), 'camera_pose_world.yml'), 'r') as f:
-    cam_pose_dict = yaml.load(f, Loader=yaml.FullLoader)
-
-# 0 -> uninitialized / pause; 1 -> start; 2 -> stop
-if mode == 'explore':
-    robot = random_explore.robot
-    signal = 0
-elif mode == 'record':
-    robot = manipulate.ManipulatorSystem()
-    datetime_now = datetime.now().strftime("%d-%b-%Y-%H:%M:%S.%f")
-    os.system('mkdir -p ' + f"{os.path.join(data_path, datetime_now)}")
-    signal = 0
-elif mode == 'control':
-    robot = execute_actions.robot
-    datetime_now = datetime.now().strftime("%d-%b-%Y-%H:%M:%S.%f")
-    os.system('mkdir -p ' + f"{os.path.join(data_path, datetime_now)}")
-    signal = 1
-else:
-    raise NotImplementedError
-
-
-def main():
-    global signal
-    rospy.init_node('point_cloud_writer', anonymous=True)
-
-    iter_pub = rospy.Publisher('/iter', UInt8, queue_size=10)
-    # robot_pose_pub = rospy.Publisher('/robot_pose', RobotPose, queue_size=10)
-    rospy.Subscriber("/signal", UInt8, signal_callback)
-    tss = ApproximateTimeSynchronizer(
-        (Subscriber("/cam1/depth/color/points", PointCloud2), 
-        Subscriber("/cam2/depth/color/points", PointCloud2), 
-        Subscriber("/cam3/depth/color/points", PointCloud2), 
-        Subscriber("/cam4/depth/color/points", PointCloud2)),
-        # Subscriber("/robot_pose", RobotPose)),
-        queue_size=100,
-        slop=0.2
-    )
-
-    tss.registerCallback(cloud_callback)
-
-    static_br = tf2_ros.StaticTransformBroadcaster()
-    static_ts_list = []
-    for i in range(1, num_cams + 1):
-        static_ts = TransformStamped()
-        # static_ts.header.stamp = rospy.Time.now()
-        static_ts.header.frame_id = fixed_frame
-        static_ts.child_frame_id = f"cam{i}_link"
-
-        static_ts.transform.translation.x = cam_pose_dict[f"cam_{i}"]["position"][0]
-        static_ts.transform.translation.y = cam_pose_dict[f"cam_{i}"]["position"][1]
-        static_ts.transform.translation.z = cam_pose_dict[f"cam_{i}"]["position"][2]
-
-        static_ts.transform.rotation.x = cam_pose_dict[f"cam_{i}"]["orientation"][1]
-        static_ts.transform.rotation.y = cam_pose_dict[f"cam_{i}"]["orientation"][2]
-        static_ts.transform.rotation.z = cam_pose_dict[f"cam_{i}"]["orientation"][3]
-        static_ts.transform.rotation.w = cam_pose_dict[f"cam_{i}"]["orientation"][0]
-        
-        static_ts_list.append(static_ts)
-
-    static_br.sendTransform(static_ts_list)
-
-    # br = tf.TransformBroadcaster()
-    rate = rospy.Rate(100)
-    while not rospy.is_shutdown():
-        # t0 = timer()
-        # robot_pose_msg = RobotPose()
-        # robot_pose_msg.header.stamp = rospy.Time.now()
-        # robot_pose_msg.ee_pose = robot.get_ee_pose()
-        # robot_pose_msg.gripper_width = Float32(robot.gripper.get_state().width)
-
-        # robot_pose_pub.publish(robot_pose_msg)
-        # t1 = timer()
-        # print(f'Time taken to publish: {t1 - t0}')
-        
-        if mode == 'control':
-            iter_pub.publish(UInt8(iter))
-
-        if signal == 2: break
-        
-        rate.sleep()
 
 
 iter = 0
@@ -130,17 +28,18 @@ def signal_callback(msg):
     iter += 1
 
 
-time_start = 0.0
-time_last = 0.0
-time_now = 0.0
-time_delta = 0.1
+data_path = ''
+def path_callback(msg):
+    global data_path
+    data_path = msg.data
 
-data_list = sorted(glob.glob(os.path.join(data_path, '*')))
-if len(data_list) == 0:
-    trial = 0
-else:
-    trial = int(os.path.basename(data_list[-1]).lstrip('0')) + 1
 
+# signal 0 -> uninitialized / pause; 1 -> start; 2 -> stop
+signal = 0
+time_start, time_last, time_now, time_delta = 0.0, 0.0, 0.0, 0.1
+tiral = 0
+mode = ''
+robot = None
 def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
     global signal
     global time_start
@@ -168,7 +67,7 @@ def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
                     print(f"Trial {trial}: recorded pcd at {round(time_now, 3)} " + \
                         f"({round(time_diff_1, 3)}, {round(time_diff_2, 3)}, {round(time_diff_3, 3)})...")
                 else:
-                    bag = rosbag.Bag(os.path.join(data_path, datetime_now, f'{time_now:.3f}.bag'), 'w')
+                    bag = rosbag.Bag(os.path.join(data_path, f'{time_now:.3f}.bag'), 'w')
                 
                 # t0 = timer()
                 bag.write('/cam1/depth/color/points', cam1_msg)
@@ -198,7 +97,7 @@ def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
 
     elif mode == 'control':
         if signal == 1:
-            bag = rosbag.Bag(os.path.join(data_path, datetime_now, f'state_{iter}.bag'), 'w')
+            bag = rosbag.Bag(os.path.join(data_path, f'state_{iter}.bag'), 'w')
             bag.write('/cam1/depth/color/points', cam1_msg)
             bag.write('/cam2/depth/color/points', cam2_msg)
             bag.write('/cam3/depth/color/points', cam3_msg)
@@ -217,6 +116,92 @@ def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
 
     else:
         raise NotImplementedError
+
+
+def main():
+    global signal
+    global trial
+    global mode
+    global data_path
+    global robot
+
+    if len(sys.argv) < 2:
+        print("Please enter the mode!")
+        exit()
+
+    rospy.init_node('point_cloud_writer', anonymous=True)
+
+    iter_pub = rospy.Publisher('/iter', UInt8, queue_size=10)
+    rospy.Subscriber("/signal", UInt8, signal_callback)
+    rospy.Subscriber("/raw_data_path", String, path_callback)
+    
+    tss = ApproximateTimeSynchronizer(
+        (Subscriber("/cam1/depth/color/points", PointCloud2), 
+        Subscriber("/cam2/depth/color/points", PointCloud2), 
+        Subscriber("/cam3/depth/color/points", PointCloud2), 
+        Subscriber("/cam4/depth/color/points", PointCloud2)),
+        queue_size=100,
+        slop=0.2
+    )
+
+    tss.registerCallback(cloud_callback)
+
+    cd = os.path.dirname(os.path.realpath(sys.argv[0]))
+    mode = sys.argv[1] # explore, record, or control
+    if mode == 'explore':
+        robot = random_explore.robot
+        signal = 0
+        # task_name = 'gripping_sym_robot_v1'
+        # task_name = 'gripping_asym_robot_v1'
+        # task_name = 'rolling_small_robot_v1'
+        task_name = 'pressing_large_robot_v1'
+        data_path = os.path.join(cd, '..', 'raw_data', task_name)
+        os.system('mkdir -p ' + f"{data_path}")
+        data_list = sorted(glob.glob(os.path.join(data_path, '*')))
+        if len(data_list) == 0:
+            trial = 0
+        else:
+            trial = int(os.path.basename(data_list[-1]).lstrip('0')) + 1
+    elif mode == 'record':
+        robot = manipulate.ManipulatorSystem()
+        signal = 0
+    elif mode == 'control':
+        robot = execute_actions.robot
+        signal = 1
+    else:
+        raise NotImplementedError
+
+    with open(os.path.join(os.path.join(cd, '..', 'env'), 'camera_pose_world.yml'), 'r') as f:
+        cam_pose_dict = yaml.load(f, Loader=yaml.FullLoader)
+
+    static_br = tf2_ros.StaticTransformBroadcaster()
+    static_ts_list = []
+    for i in range(1, len(cam_pose_dict) + 1):
+        static_ts = TransformStamped()
+        static_ts.header.frame_id = 'panda_link0'
+        static_ts.child_frame_id = f"cam{i}_link"
+
+        static_ts.transform.translation.x = cam_pose_dict[f"cam_{i}"]["position"][0]
+        static_ts.transform.translation.y = cam_pose_dict[f"cam_{i}"]["position"][1]
+        static_ts.transform.translation.z = cam_pose_dict[f"cam_{i}"]["position"][2]
+
+        static_ts.transform.rotation.x = cam_pose_dict[f"cam_{i}"]["orientation"][1]
+        static_ts.transform.rotation.y = cam_pose_dict[f"cam_{i}"]["orientation"][2]
+        static_ts.transform.rotation.z = cam_pose_dict[f"cam_{i}"]["orientation"][3]
+        static_ts.transform.rotation.w = cam_pose_dict[f"cam_{i}"]["orientation"][0]
+        
+        static_ts_list.append(static_ts)
+
+    static_br.sendTransform(static_ts_list)
+
+    rate = rospy.Rate(100)
+    while not rospy.is_shutdown():
+        if mode == 'control':
+            iter_pub.publish(UInt8(iter))
+
+        if signal == 2: break
+        
+        rate.sleep()
 
 
 if __name__ == '__main__':
