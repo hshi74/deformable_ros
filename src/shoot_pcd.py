@@ -31,7 +31,11 @@ def signal_callback(msg):
 data_path = ''
 def path_callback(msg):
     global data_path
-    data_path = msg.data
+    global signal
+    if data_path != msg.data:
+        data_path = msg.data
+        print(f"MPC state data path: {data_path}")
+        signal = 1
 
 
 # signal 0 -> uninitialized / pause; 1 -> start; 2 -> stop
@@ -48,7 +52,7 @@ def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
     global trial
     global iter
 
-    if mode == 'explore' or mode == 'record' :
+    if mode == 'explore':
         if signal == 1:
             if time_start == 0.0:
                 time_start = cam1_msg.header.stamp.to_sec()
@@ -57,39 +61,31 @@ def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
             time_diff_1 = cam2_msg.header.stamp.to_sec() - time_start - time_now
             time_diff_2 = cam3_msg.header.stamp.to_sec() - time_start - time_now
             time_diff_3 = cam4_msg.header.stamp.to_sec() - time_start - time_now
-            # time_diff_4 = robot_pose_msg.header.stamp.to_sec() - time_start - time_now
-            # print(time_now - time_last)
+            
             if time_now == 0.0 or time_now - time_last > time_delta:
-                if mode == 'explore':
-                    trial_path = os.path.join(data_path, str(trial).zfill(3))
-                    os.system('mkdir -p ' + f"{trial_path}")
-                    bag = rosbag.Bag(os.path.join(trial_path, f'{time_now:.3f}.bag'), 'w')
-                    print(f"Trial {trial}: recorded pcd at {round(time_now, 3)} " + \
-                        f"({round(time_diff_1, 3)}, {round(time_diff_2, 3)}, {round(time_diff_3, 3)})...")
-                else:
-                    bag = rosbag.Bag(os.path.join(data_path, f'{time_now:.3f}.bag'), 'w')
-                
-                # t0 = timer()
+                trial_path = os.path.join(data_path, str(trial).zfill(3))
+                os.system('mkdir -p ' + f"{trial_path}")
+                bag = rosbag.Bag(os.path.join(trial_path, f'{time_now:.3f}.bag'), 'w')
+
                 bag.write('/cam1/depth/color/points', cam1_msg)
                 bag.write('/cam2/depth/color/points', cam2_msg)
                 bag.write('/cam3/depth/color/points', cam3_msg)
                 bag.write('/cam4/depth/color/points', cam4_msg)
 
-                # bag.write('/robot_pose', robot_pose_msg)
-                # t1 = timer()
                 ee_pose = robot.get_ee_pose()
                 bag.write('/ee_pose', ee_pose)
 
                 gripper_width = robot.gripper.get_state().width
                 bag.write('/gripper_width', Float32(gripper_width))
 
-                # print(f'Time taken to write: {t1 - t0}')
-
                 bag.close()
 
+                print(f"Trial {trial}: recorded pcd at {round(time_now, 3)} " + \
+                    f"({round(time_diff_1, 3)}, {round(time_diff_2, 3)}, {round(time_diff_3, 3)})...")
+                
                 time_last = time_now
 
-        if mode == 'explore' and signal == 0 and time_start > 0:
+        if signal == 0 and time_start > 0:
             trial += 1
             time_start = 0.0
             time_last = 0.0
@@ -112,6 +108,8 @@ def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
 
             bag.close()
 
+            print(f"Recorded pcd at iter {iter}...")
+
             signal = 0
 
     else:
@@ -129,7 +127,7 @@ def main():
         print("Please enter the mode!")
         exit()
 
-    rospy.init_node('point_cloud_writer', anonymous=True)
+    rospy.init_node('vision_sensor', anonymous=True)
 
     iter_pub = rospy.Publisher('/iter', UInt8, queue_size=10)
     rospy.Subscriber("/signal", UInt8, signal_callback)
@@ -150,7 +148,6 @@ def main():
     mode = sys.argv[1] # explore, record, or control
     if mode == 'explore':
         robot = random_explore.robot
-        signal = 0
         # task_name = 'gripping_sym_robot_v1'
         # task_name = 'gripping_asym_robot_v1'
         # task_name = 'rolling_small_robot_v1'
@@ -164,10 +161,8 @@ def main():
             trial = int(os.path.basename(data_list[-1]).lstrip('0')) + 1
     elif mode == 'record':
         robot = manipulate.ManipulatorSystem()
-        signal = 0
     elif mode == 'control':
         robot = execute_actions.robot
-        signal = 1
     else:
         raise NotImplementedError
 
@@ -194,6 +189,7 @@ def main():
 
     static_br.sendTransform(static_ts_list)
 
+    print(f"Ready to {mode}!")
     rate = rospy.Rate(100)
     while not rospy.is_shutdown():
         if mode == 'control':
