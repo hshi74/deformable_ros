@@ -1,7 +1,24 @@
-circular_cutter: ready
-gripper: ready
-hook: ready
-planar_cutter: ready
-roller: ready
-shovel: ready
-stamp: ready
+circular_cutter:
+  loc: -1
+  status: ready
+gripper_asym:
+  loc: 1
+  status: ready
+gripper_sym:
+  loc: 0
+  status: ready
+hook:
+  loc: -1
+  status: ready
+planar_cutter:
+  loc: -1
+  status: ready
+roller:
+  loc: 2
+  status: ready
+shovel:
+  loc: -1
+  status: ready
+stamp:
+  loc: 3
+  status: ready

@@ -59,8 +59,8 @@ class ManipulatorSystem:
         self.rest_pos = self.rest_pose[0]
         self.rest_quat = self.rest_pose[1]
 
-        self.grip_speed = 0.1
-        self.grip_force = 10.0
+        self.grip_speed = 0.05
+        self.grip_force = 20.0
 
         cd = os.path.dirname(os.path.realpath(sys.argv[0]))
         self.tool_status_path = os.path.join(cd, '..', 'env', 'tool_status.yml')
@@ -69,13 +69,14 @@ class ManipulatorSystem:
                 self.tool_status = yaml.load(f, Loader=yaml.FullLoader)
         else:
             self.tool_status = {
-                'circular_cutter': 'ready',
-                'gripper': 'ready',
-                'hook': 'ready',
-                'planar_cutter': 'ready',
-                'roller': 'ready',
-                'shovel': 'ready',
-                'stamp': 'ready',
+                'gripper_sym': {'loc': 0, 'status': 'ready'},
+                'gripper_asym': {'loc': 1, 'status': 'ready'},
+                'roller': {'loc': 2, 'status': 'ready'},
+                'stamp': {'loc': 3, 'status': 'ready'},
+                'circular_cutter': {'loc': -1, 'status': 'ready'},
+                'hook': {'loc': -1, 'status': 'ready'},
+                'planar_cutter': {'loc': -1, 'status': 'ready'},
+                'shovel': {'loc': -1, 'status': 'ready'},
             }
 
         # self.reset()
@@ -234,17 +235,24 @@ class ManipulatorSystem:
         return gripper_poses
 
 
-    def take_away_tool(self, tool):
-        if tool == 'gripper':
-            self.take_away(grip_params=(0.47, 0.26, np.pi / 4), grip_h=0.315, pregrip_dh=0.01, grip_width=0.01, lift_dh=0.1, loc='left')
-        elif tool == 'roller':
-            self.take_away(grip_params=(0.66, 0.185, -np.pi / 4), grip_h=0.325, pregrip_dh=0.01, grip_width=0.015)
-        elif tool == 'planar_cutter':
-            self.take_away(grip_params=(0.66, 0.065, -np.pi / 4), grip_h=0.325, pregrip_dh=0.01, grip_width=0.015)
-        elif tool == 'stamp':
-            self.take_away(grip_params=(0.66, -0.1, -np.pi / 4), grip_h=0.325, pregrip_dh=0.01, grip_width=0.015)
-        elif tool == 'shovel':
-            self.take_away(grip_params=(0.66, -0.225, -np.pi / 4), grip_h=0.325, pregrip_dh=0.01, grip_width=0.015)
+    def take_away_tool(self, tool, debug=False):
+        if tool in self.tool_status.keys():
+            loc = self.tool_status[tool]['loc']
+        else:
+            raise NotImplementedError
+
+        if loc == 0:
+            self.take_away(grip_params=(0.35, 0.31, np.pi / 4), grip_h=0.315, pregrip_dh=0.01, grip_width=0.01, lift_dh=0.1, loc='left', debug=debug)
+        elif loc == 1:
+            self.take_away(grip_params=(0.56, 0.27, np.pi / 4), grip_h=0.315, pregrip_dh=0.01, grip_width=0.01, lift_dh=0.1, loc='left', debug=debug)
+        elif loc == 2:
+            self.take_away(grip_params=(0.66, 0.185, -np.pi / 4), grip_h=0.325, pregrip_dh=0.01, grip_width=0.015, debug=debug)
+        elif loc == 3:
+            self.take_away(grip_params=(0.66, 0.06, -np.pi / 4), grip_h=0.325, pregrip_dh=0.01, grip_width=0.015, debug=debug)
+        elif loc == 4:
+            self.take_away(grip_params=(0.66, -0.1, -np.pi / 4), grip_h=0.325, pregrip_dh=0.01, grip_width=0.015, debug=debug)
+        elif loc == 5:
+            self.take_away(grip_params=(0.66, -0.225, -np.pi / 4), grip_h=0.325, pregrip_dh=0.01, grip_width=0.015, debug=debug)
         else:
             raise NotImplementedError
 
@@ -253,16 +261,23 @@ class ManipulatorSystem:
 
 
     def put_back_tool(self, tool):
-        if tool == 'gripper':
-            self.put_back_gripper(grip_params=(0.467, 0.26, np.pi / 4), grip_h=0.315, pregrip_dh=0.03)
-        elif tool == 'roller':
-            self.put_back(grip_params=(0.655, 0.19, -np.pi / 4), grip_h=0.325, pregrip_dh=0.015)
-        elif tool == 'planar_cutter':
-            self.put_back(grip_params=(0.655, 0.065, -np.pi / 4), grip_h=0.325, pregrip_dh=0.015)
-        elif tool == 'stamp':
-            self.put_back(grip_params=(0.655, -0.1, -np.pi / 4), grip_h=0.325, pregrip_dh=0.015)
-        elif tool == 'shovel':
-            self.put_back(grip_params=(0.655, -0.225, -np.pi / 4), grip_h=0.325, pregrip_dh=0.015)
+        if tool in self.tool_status.keys():
+            loc = self.tool_status[tool]['loc']
+        else:
+            raise NotImplementedError
+
+        if loc == 0:
+            self.put_back_gripper(grip_params=(0.355, 0.305, np.pi / 4), grip_h=0.315, pregrip_dh=0.03)
+        elif loc == 1:
+            self.put_back_gripper(grip_params=(0.565, 0.265, np.pi / 4), grip_h=0.315, pregrip_dh=0.05)
+        elif loc == 2:
+            self.put_back(grip_params=(0.66, 0.185, -np.pi / 4), grip_h=0.32, pregrip_dh=0.015)
+        elif loc == 3:
+            self.put_back(grip_params=(0.66, 0.06, -np.pi / 4), grip_h=0.32, pregrip_dh=0.015)
+        elif loc == 4:
+            self.put_back(grip_params=(0.66, -0.1, -np.pi / 4), grip_h=0.32, pregrip_dh=0.015)
+        elif loc == 5:
+            self.put_back(grip_params=(0.66, -0.225, -np.pi / 4), grip_h=0.32, pregrip_dh=0.015)
         else:
             raise NotImplementedError
 
@@ -312,7 +327,6 @@ class ManipulatorSystem:
         # grip
         if not debug:
             self.close_gripper(grip_width, blocking=False)
-            time.sleep(0.2)
 
         # Lift the tool
         print("=> lift the tool:")
@@ -477,6 +491,10 @@ class ManipulatorSystem:
         # grip
         self.close_gripper(grip_width, blocking=False, grip_params=(0.02, 150))
 
+        if mode == 'react':
+            self.signal_pub.publish(UInt8(1))
+            time.sleep(0.2)
+
         # Release
         self.open_gripper()
         # Lift to pregrip
@@ -513,6 +531,10 @@ class ManipulatorSystem:
         if mode == 'explore':
             self.signal_pub.publish(UInt8(0))
             time.sleep(0.1)
+        
+        if mode == 'react':
+            self.signal_pub.publish(UInt8(1))
+            time.sleep(0.2)
 
         print("=> back to preroll:")
         self.move_to(*preroll_pose)
@@ -536,6 +558,10 @@ class ManipulatorSystem:
 
         if mode == 'explore':
             self.signal_pub.publish(UInt8(0))
+            time.sleep(0.2)
+        
+        if mode == 'react':
+            self.signal_pub.publish(UInt8(1))
             time.sleep(0.2)
 
         print("=> back to prepress:")

@@ -110,6 +110,11 @@ def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
 
             print(f"Recorded pcd at iter {iter}...")
 
+            # cd = os.path.dirname(os.path.realpath(sys.argv[0]))
+            # debug_bag_path = os.path.join(cd, '..', 'raw_data', 'debug', 'state_0.bag')
+            # os.system(f'cp {debug_bag_path} {os.path.join(data_path, f"state_{iter}.bag")}')
+            # print(f"Copied pcd at iter {iter}...")
+
             signal = 0
 
     else:

@@ -17,8 +17,8 @@ import manipulate
 robot = manipulate.ManipulatorSystem()
 
 task_tool_mapping = {
-    'cutting': 'planar_cutter', 
-    'gripping': 'gripper', 
+    'gripping_sym': 'gripper_sym', 
+    'gripping_asym': 'gripper_asym', 
     'rolling': 'roller', 
     'pressing': 'stamp',
 }
@@ -51,13 +51,12 @@ def main():
         react()
     elif mode == 'replay':
         print("Replaying...")
-        result_dir = readchar.readkey()
+        result_dir = input("Please enter the path of the solution: \n")
         if os.path.exists(result_dir):
-            best_init_pose_seq = np.load(f"{result_dir}/best_init_pose_seq.npy", allow_pickle=True)
-            best_act_seq = np.load(f"{result_dir}/best_act_seq.npy", allow_pickle=True)
+            param_seq = np.load(result_dir, allow_pickle=True)
             for task_name in task_tool_mapping.keys():
                 if task_name in result_dir:
-                    execute(task_name, best_init_pose_seq, best_act_seq)
+                    execute(task_name, param_seq)
                     break
         else:
             print("Result directory doesn't exist!")
@@ -65,7 +64,7 @@ def main():
         raise NotImplementedError
 
 
-def execute(task_name, param_seq, mode):
+def execute(task_name, param_seq):
     if 'gripping' in task_name:
         param_seq = param_seq.reshape(-1, 4)
         for i in range(len(param_seq)):
@@ -73,15 +72,22 @@ def execute(task_name, param_seq, mode):
             pregrip_dh = 0.1
             grip_pos_x, grip_pos_y, rot_noise, grip_width = param_seq[i]
             print(f'===== Grip {i+1}: {param_seq[i]} =====')
-            robot.grip((grip_pos_x, grip_pos_y, rot_noise), grip_h, pregrip_dh, grip_width, mode=mode)
+            if i == len(param_seq) - 1:
+                grip_mode = 'react'
+            else:
+                grip_mode = 'na'
+            robot.grip((grip_pos_x, grip_pos_y, rot_noise), grip_h, pregrip_dh, grip_width, mode=grip_mode)
     elif 'pressing' in task_name:
         param_seq = param_seq.reshape(-1, 4)
         for i in range(len(param_seq)):
             prepress_dh = 0.1
             press_pos_x, press_pos_y, press_pos_z, rot_noise = param_seq[i]
-            press_pos = []
             print(f'===== Press {i+1}: {param_seq[i]} =====')
-            robot.press((press_pos_x, press_pos_y, press_pos_z), rot_noise, prepress_dh, mode=mode)
+            if i == len(param_seq) - 1:
+                press_mode = 'react'
+            else:
+                press_mode = 'na'
+            robot.press((press_pos_x, press_pos_y, press_pos_z), rot_noise, prepress_dh, mode=press_mode)
     elif 'rolling' in task_name:
         param_seq = param_seq.reshape(-1, 5)
         for i in range(len(param_seq)):
@@ -92,7 +98,11 @@ def execute(task_name, param_seq, mode):
             roll_delta = axangle2mat([0, 0, 1], roll_rot[2] + np.pi / 4) @ np.array([roll_dist, 0, 0]).T
             end_pos = start_pos + roll_delta
             print(f'===== Roll {i+1}: {param_seq[i]} =====')
-            robot.roll(start_pos, roll_rot, end_pos, preroll_dh, mode=mode)
+            if i == len(param_seq) - 1:
+                roll_mode = 'react'
+            else:
+                roll_mode = 'na'
+            robot.roll(start_pos, roll_rot, end_pos, preroll_dh, mode=roll_mode)
     else:
         raise NotImplementedError
 
@@ -123,8 +133,7 @@ def react():
         elif command == 'execute':
             if param_seq is not None:
                 command_fb_pub.publish(UInt8(1))
-                execute(task_name, param_seq, mode='react')
-                robot.signal_pub.publish(UInt8(1))
+                execute(task_name, param_seq)
                 param_seq = None
 
         elif command == 'switch':

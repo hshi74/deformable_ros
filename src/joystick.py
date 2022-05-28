@@ -38,35 +38,32 @@ def joy_callback(msg):
     if msg.buttons[4] or msg.buttons[5]:
         if msg.buttons[4]:
             if msg.axes[2] == 1.0 and msg.axes[5] == 1.0:
-                tool = 'gripper'
+                tool = 'gripper_sym'
             elif msg.axes[2] == -1.0 and msg.axes[5] == 1.0:
-                tool = 'roller'
+                tool = 'gripper_asym'
             elif msg.axes[2] == 1.0 and msg.axes[5] == -1.0:
-                tool = 'planar_cutter'
+                tool = 'roller'
             elif msg.axes[2] == -1.0 and msg.axes[5] == -1.0:
-                tool = 'circular_cutter'
+                tool = 'stamp'
             else:
                 raise NotImplementedError
 
         if msg.buttons[5]:
-            if msg.axes[2] == 1.0 and msg.axes[5] == 1.0:
-                tool = 'shovel'
-            else:
-                raise NotImplementedError
+            raise NotImplementedError
 
-        if robot.tool_status[tool] == 'ready':
+        if robot.tool_status[tool]['status'] == 'ready':
             for k, v in robot.tool_status.items():
-                if k != tool and v == 'using':
+                if k != tool and v['status'] == 'using':
                     print(f"Could not take {tool} while using {k}!")
                     return
             
             print(f"========== taking away {tool} ==========")
-            robot.take_away_tool(tool)
-            robot.tool_status[tool] = 'using'
+            robot.take_away_tool(tool, debug=False)
+            robot.tool_status[tool]['status'] = 'using'
         else:
             print(f"========== putting back {tool} ==========")
             robot.put_back_tool(tool)
-            robot.tool_status[tool] = 'ready'
+            robot.tool_status[tool]['status'] = 'ready'
 
         # reset the pose
         pos_curr = [*rest_pos]

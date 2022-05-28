@@ -11,8 +11,9 @@ import manipulate
 robot = manipulate.ManipulatorSystem()
 
 task_tool_mapping = {
-    'cutting': 'planar_cutter', 
-    'gripping': 'gripper', 
+    'cutting': 'planar',
+    'gripping_sym': 'gripper_sym', 
+    'gripping_asym': 'gripper_asym', 
     'rolling': 'roller', 
     'pressing': 'stamp',
 }
@@ -46,7 +47,7 @@ def main():
         elif key == 'r':
             if task_name == 'cutting':
                 random_cut()
-            elif task_name == 'gripping':
+            elif 'gripping' in task_name:
                 random_grip(3)
             elif task_name == 'rolling':
                 random_roll()
