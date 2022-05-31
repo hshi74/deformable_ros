@@ -20,12 +20,9 @@ from timeit import default_timer as timer
 from transforms3d.quaternions import *
 
 
-iter = 0
 def signal_callback(msg):
     global signal
-    global iter
     signal = msg.data
-    iter += 1
 
 
 data_path = ''
@@ -33,9 +30,10 @@ def path_callback(msg):
     global data_path
     global signal
     if data_path != msg.data:
+        if '0' in os.path.basename(msg.data):
+            signal = 1
         data_path = msg.data
         print(f"MPC state data path: {data_path}")
-        signal = 1
 
 
 # signal 0 -> uninitialized / pause; 1 -> start; 2 -> stop
@@ -50,7 +48,6 @@ def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
     global time_last
     global time_now
     global trial
-    global iter
 
     if mode == 'explore':
         if signal == 1:
@@ -93,7 +90,7 @@ def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
 
     elif mode == 'control':
         if signal == 1:
-            bag = rosbag.Bag(os.path.join(data_path, f'state_{iter}.bag'), 'w')
+            bag = rosbag.Bag(data_path, 'w')
             bag.write('/cam1/depth/color/points', cam1_msg)
             bag.write('/cam2/depth/color/points', cam2_msg)
             bag.write('/cam3/depth/color/points', cam3_msg)
@@ -108,12 +105,12 @@ def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
 
             bag.close()
 
-            print(f"Recorded pcd at iter {iter}...")
+            print(f"Recorded pcd at {os.path.basename(data_path)}...")
 
             # cd = os.path.dirname(os.path.realpath(sys.argv[0]))
             # debug_bag_path = os.path.join(cd, '..', 'raw_data', 'debug', 'state_0.bag')
-            # os.system(f'cp {debug_bag_path} {os.path.join(data_path, f"state_{iter}.bag")}')
-            # print(f"Copied pcd at iter {iter}...")
+            # os.system(f'cp {debug_bag_path} {data_path}")}')
+            # print(f"Copied pcd at {os.path.basename(data_path)}...")
 
             signal = 0
 
@@ -134,7 +131,6 @@ def main():
 
     rospy.init_node('vision_sensor', anonymous=True)
 
-    iter_pub = rospy.Publisher('/iter', UInt8, queue_size=10)
     rospy.Subscriber("/signal", UInt8, signal_callback)
     rospy.Subscriber("/raw_data_path", String, path_callback)
     
@@ -197,11 +193,7 @@ def main():
     print(f"Ready to {mode}!")
     rate = rospy.Rate(100)
     while not rospy.is_shutdown():
-        if mode == 'control':
-            iter_pub.publish(UInt8(iter))
-
         if signal == 2: break
-        
         rate.sleep()
 
 

@@ -43,7 +43,6 @@ def main():
             if robot.tool_status[tool] == 'ready':
                 print(f"========== taking away {tool} ==========")
                 robot.take_away_tool(tool)
-                robot.tool_status[tool] = 'using'
         elif key == 'r':
             if task_name == 'cutting':
                 random_cut()
@@ -59,7 +58,6 @@ def main():
             if robot.tool_status[tool] == 'using':
                 print(f"========== putting back {tool} ==========")
                 robot.put_back_tool(tool)
-                robot.tool_status[tool] = 'ready'
         elif key == 'c':
             break
         else:

@@ -149,6 +149,7 @@ class ManipulatorSystem:
             self.gripper.goto(width=grip_width, speed=grip_params[0], force=grip_params[1], blocking=blocking)
         else:
             self.gripper.goto(width=grip_width, speed=self.grip_speed, force=self.grip_force, blocking=blocking)
+
         time.sleep(0.2)
 
         # Check state
@@ -159,6 +160,7 @@ class ManipulatorSystem:
     def open_gripper(self):
         max_width = self.gripper.get_state().max_width
         self.gripper.goto(width=max_width, speed=self.grip_speed, force=self.grip_force)
+
         time.sleep(0.2)
 
         # Check state
@@ -256,6 +258,7 @@ class ManipulatorSystem:
         else:
             raise NotImplementedError
 
+        self.tool_status[tool] = 'using'
         with open(self.tool_status_path, 'w') as f:
             yaml.dump(self.tool_status, f)
 
@@ -280,7 +283,8 @@ class ManipulatorSystem:
             self.put_back(grip_params=(0.66, -0.225, -np.pi / 4), grip_h=0.32, pregrip_dh=0.015)
         else:
             raise NotImplementedError
-
+        
+        self.tool_status[tool] = 'ready'
         with open(self.tool_status_path, 'w') as f:
             yaml.dump(self.tool_status, f)
 
@@ -492,8 +496,8 @@ class ManipulatorSystem:
         self.close_gripper(grip_width, blocking=False, grip_params=(0.02, 150))
 
         if mode == 'react':
+            time.sleep(5.0)
             self.signal_pub.publish(UInt8(1))
-            time.sleep(0.2)
 
         # Release
         self.open_gripper()
@@ -516,7 +520,7 @@ class ManipulatorSystem:
 
         if mode == 'explore':
             self.signal_pub.publish(UInt8(1))
-            time.sleep(0.1)
+            time.sleep(0.2)
 
         # Press
         print("=> press:")
@@ -530,7 +534,7 @@ class ManipulatorSystem:
 
         if mode == 'explore':
             self.signal_pub.publish(UInt8(0))
-            time.sleep(0.1)
+            time.sleep(0.2)
         
         if mode == 'react':
             self.signal_pub.publish(UInt8(1))

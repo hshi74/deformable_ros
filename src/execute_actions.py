@@ -56,7 +56,7 @@ def main():
             param_seq = np.load(result_dir, allow_pickle=True)
             for task_name in task_tool_mapping.keys():
                 if task_name in result_dir:
-                    execute(task_name, param_seq)
+                    run(task_name, param_seq)
                     break
         else:
             print("Result directory doesn't exist!")
@@ -64,7 +64,7 @@ def main():
         raise NotImplementedError
 
 
-def execute(task_name, param_seq):
+def run(task_name, param_seq):
     if 'gripping' in task_name:
         param_seq = param_seq.reshape(-1, 4)
         for i in range(len(param_seq)):
@@ -117,43 +117,27 @@ def react():
     while not rospy.is_shutdown():
         if len(command_str) == 0: continue
 
-        command_list = command_str.split('_')
+        command_list = command_str.split('.')
         command = command_list[0]
         if len(command_list) > 1: 
             task_name = command_list[1]
 
-        if command == 'start':
-            tool = task_tool_mapping[task_name]
-            if robot.tool_status[tool] == 'ready':
-                print(f"========== Taking away {tool} ==========")
-                command_fb_pub.publish(UInt8(1))
-                robot.take_away_tool(tool)
-                robot.tool_status[tool] = 'using'
+        if command == 'run':
+            selected_tool = task_tool_mapping[task_name]
+            if robot.tool_status[selected_tool] == 'ready':
+                for tool, status in robot.tool_status.items():
+                    if status == 'using':
+                        print(f"========== Putting back {tool} ==========")
+                        robot.put_back_tool(tool)
+                        break
+        
+                print(f"========== Taking away {selected_tool} ==========")
+                robot.take_away_tool(selected_tool)
 
-        elif command == 'execute':
             if param_seq is not None:
                 command_fb_pub.publish(UInt8(1))
-                execute(task_name, param_seq)
+                run(task_name, param_seq)
                 param_seq = None
-
-        elif command == 'switch':
-            done = False
-            for tool, status in robot.tool_status.items():
-                if status == 'using':
-                    print(f"========== Putting back {tool} ==========")
-                    robot.put_back_tool(tool)
-                    robot.tool_status[tool] = 'ready'
-                    done = True
-                    break
-
-            if done:
-                tool = task_tool_mapping[command_list[1]]
-                if robot.tool_status[tool] == 'ready':
-                    print(f"========== Taking away {tool} ==========")
-                    command_fb_pub.publish(UInt8(1))
-                    robot.take_away_tool(tool)
-                    robot.tool_status[tool] = 'using'
-                    continue
 
         elif command == 'end':
             for tool, status in robot.tool_status.items():
@@ -161,7 +145,6 @@ def react():
                     print(f"========== Putting back {tool} ==========")
                     command_fb_pub.publish(UInt8(1))
                     robot.put_back_tool(tool)
-                    robot.tool_status[tool] = 'ready'
                     break
 
         else:

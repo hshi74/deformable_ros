@@ -59,11 +59,9 @@ def joy_callback(msg):
             
             print(f"========== taking away {tool} ==========")
             robot.take_away_tool(tool, debug=False)
-            robot.tool_status[tool]['status'] = 'using'
         else:
             print(f"========== putting back {tool} ==========")
             robot.put_back_tool(tool)
-            robot.tool_status[tool]['status'] = 'ready'
 
         # reset the pose
         pos_curr = [*rest_pos]
