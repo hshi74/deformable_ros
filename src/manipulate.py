@@ -498,6 +498,7 @@ class ManipulatorSystem:
         if mode == 'react':
             time.sleep(5.0)
             self.signal_pub.publish(UInt8(1))
+            time.sleep(1.0)
 
         # Release
         self.open_gripper()

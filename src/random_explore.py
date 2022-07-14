@@ -47,7 +47,7 @@ def main():
             if task_name == 'cutting':
                 random_cut()
             elif 'gripping' in task_name:
-                random_grip(3)
+                random_grip(5)
             elif task_name == 'rolling':
                 random_roll()
             elif task_name == 'pressing':
@@ -75,11 +75,11 @@ def random_cut(pos_noise_scale=0.03):
     robot.cut(cut_pos, cut_rot, precut_dh)
 
 
-def random_grip(n_grips, pos_noise_scale=0.01, grip_width_noise=0.01):
+def random_grip(n_grips, pos_noise_scale=0.015, grip_width_noise=0.01):
     # Perform gripping
     grip_pos = np.array([0.4, -0.1])
     
-    grip_h = 0.175
+    grip_h = 0.18
     pregrip_dh = 0.1
     for i in range(n_grips):
         # sample grip

@@ -39,6 +39,9 @@ def path_callback(msg):
 # signal 0 -> uninitialized / pause; 1 -> start; 2 -> stop
 signal = 0
 time_start, time_last, time_now, time_delta = 0.0, 0.0, 0.0, 0.1
+n_actions = 0
+action_counted = False
+n_actions_max = 1
 tiral = 0
 mode = ''
 robot = None
@@ -47,10 +50,14 @@ def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
     global time_start
     global time_last
     global time_now
+    global n_actions
+    global action_counted
     global trial
 
     if mode == 'explore':
         if signal == 1:
+            action_counted = False
+            
             if time_start == 0.0:
                 time_start = cam1_msg.header.stamp.to_sec()
 
@@ -82,11 +89,17 @@ def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
                 
                 time_last = time_now
 
-        if signal == 0 and time_start > 0:
-            trial += 1
-            time_start = 0.0
-            time_last = 0.0
-            time_now = 0.0
+        if signal == 0:
+            if time_start > 0 and not action_counted:
+                n_actions += 1
+                action_counted = True
+
+            if n_actions >= n_actions_max:
+                n_actions = 0
+                trial += 1
+                time_start = 0.0
+                time_last = 0.0
+                time_now = 0.0
 
     elif mode == 'control':
         if signal == 1:
@@ -149,10 +162,10 @@ def main():
     mode = sys.argv[1] # explore, record, or control
     if mode == 'explore':
         robot = random_explore.robot
-        # task_name = 'gripping_sym_robot_v1'
-        # task_name = 'gripping_asym_robot_v1'
+        task_name = 'gripping_sym_robot_v3'
+        # task_name = 'gripping_asym_robot_v2'
         # task_name = 'rolling_small_robot_v1'
-        task_name = 'pressing_large_robot_v1'
+        # task_name = 'pressing_large_robot_v1'
         data_path = os.path.join(cd, '..', 'raw_data', task_name)
         os.system('mkdir -p ' + f"{data_path}")
         data_list = sorted(glob.glob(os.path.join(data_path, '*')))

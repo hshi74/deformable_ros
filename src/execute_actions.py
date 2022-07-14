@@ -3,6 +3,7 @@ import os
 import readchar
 import rospy
 import sys
+import yaml
 
 from rospy_tutorials.msg import Floats
 from rospy.numpy_msg import numpy_msg
@@ -53,11 +54,16 @@ def main():
         print("Replaying...")
         result_dir = input("Please enter the path of the solution: \n")
         if os.path.exists(result_dir):
-            param_seq = np.load(result_dir, allow_pickle=True)
-            for task_name in task_tool_mapping.keys():
-                if task_name in result_dir:
-                    run(task_name, param_seq)
-                    break
+            # param_seq = np.load(result_dir, allow_pickle=True)
+            with open(result_dir, 'r') as f:
+                param_seq_dict = yaml.load(f, Loader=yaml.FullLoader)
+            
+            for task_name, param_seq in param_seq_dict.items():
+                for task in task_tool_mapping.keys():
+                    if task in task_name:
+                        task_name = task
+                        break
+                run(task_name, np.array(param_seq))
         else:
             print("Result directory doesn't exist!")
     else:
