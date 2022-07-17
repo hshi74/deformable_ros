@@ -108,8 +108,8 @@ def main():
 
     rate = rospy.Rate(100)
     while not rospy.is_shutdown():
-        key = readchar.readkey()
         print(f"Trial {trial}: Input or output? ")
+        key = readchar.readkey()
         print(key)
         if key == 'i' or key == 'o':
             signal = 1

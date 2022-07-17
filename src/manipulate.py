@@ -495,10 +495,10 @@ class ManipulatorSystem:
         # grip
         self.close_gripper(grip_width, blocking=False, grip_params=(0.02, 150))
 
-        if mode == 'react':
-            time.sleep(5.0)
-            self.signal_pub.publish(UInt8(1))
-            time.sleep(1.0)
+        # if mode == 'react':
+        #     time.sleep(5.0)
+        #     self.signal_pub.publish(UInt8(1))
+        #     time.sleep(1.0)
 
         # Release
         self.open_gripper()
@@ -510,6 +510,10 @@ class ManipulatorSystem:
 
         print("=> back to pregrip:")
         self.move_to(*pregrip_pose)
+
+        if mode == 'react':
+            self.signal_pub.publish(UInt8(1))
+            time.sleep(0.1)
 
 
     def roll(self, start_pos, roll_rot, end_pos, preroll_dh, mode='explore'):

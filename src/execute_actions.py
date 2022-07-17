@@ -72,11 +72,13 @@ def main():
 
 def run(task_name, param_seq):
     if 'gripping' in task_name:
-        param_seq = param_seq.reshape(-1, 4)
+        param_seq = param_seq.reshape(-1, 3)
         for i in range(len(param_seq)):
             grip_h = 0.175
             pregrip_dh = 0.1
-            grip_pos_x, grip_pos_y, rot_noise, grip_width = param_seq[i]
+            pos_noise, rot_noise, grip_width = param_seq[i]
+            grip_pos_x = 0.4 - pos_noise * np.sin(rot_noise - np.pi / 2)
+            grip_pos_y = -0.1 + pos_noise * np.cos(rot_noise - np.pi / 2)
             print(f'===== Grip {i+1}: {param_seq[i]} =====')
             if i == len(param_seq) - 1:
                 grip_mode = 'react'
