@@ -75,31 +75,31 @@ def random_cut(pos_noise_scale=0.03):
     robot.cut(cut_pos, cut_rot, precut_dh)
 
 
-def random_grip(n_grips, pos_noise_scale=0.015, grip_width_noise=0.01):
+def random_grip(n_grips, pos_noise_scale=0.02, grip_width_noise=0.02):
     # Perform gripping
     grip_pos = np.array([0.4, -0.1])
     
-    grip_h = 0.18
+    grip_h = 0.175
     pregrip_dh = 0.1
     for i in range(n_grips):
         # sample grip
-        pos_noise_x = pos_noise_scale * (np.random.rand() * 2 - 1)
-        pos_noise_y = pos_noise_scale * (np.random.rand() * 2 - 1)
-
+        pos_noise = pos_noise_scale * (np.random.rand() * 2 - 1)
         rot_noise = np.random.uniform(-np.pi, np.pi)
-
-        grip_width = np.random.rand() * grip_width_noise + 0.005
         
         if rot_noise > np.pi / 2:
             rot_noise -= np.pi
         elif rot_noise < -np.pi / 2:
             rot_noise += np.pi
 
-        grip_params = (grip_pos[0] + pos_noise_x, grip_pos[1] + pos_noise_y, rot_noise)
+        grip_width = np.random.rand() * (grip_width_noise - 0.001) + 0.001
 
+        grip_pos_x = grip_pos[0] - pos_noise * np.sin(rot_noise - np.pi / 2)
+        grip_pos_y = grip_pos[1] + pos_noise * np.cos(rot_noise - np.pi / 2)
+
+        grip_params = (grip_pos_x, grip_pos_y, rot_noise)
         # Perform grip
         print(f"===== Grip {i+1}: {grip_params} and {grip_width} =====")
-        robot.grip(grip_params, grip_h, pregrip_dh, grip_width)
+        robot.grip((grip_pos_x, grip_pos_y, rot_noise), grip_h, pregrip_dh, grip_width)
 
 
 def random_roll(pos_noise_scale=0.01, roll_h_noise_scale=0.01, roll_dist_noise_scale=0.04):

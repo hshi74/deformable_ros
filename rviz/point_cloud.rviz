@@ -143,6 +143,8 @@ Visualization Manager:
       Frame Timeout: 15
       Frames:
         All Enabled: false
+        cam1_aligned_depth_to_color_frame:
+          Value: true
         cam1_color_frame:
           Value: false
         cam1_color_optical_frame:
@@ -152,6 +154,8 @@ Visualization Manager:
         cam1_depth_optical_frame:
           Value: false
         cam1_link:
+          Value: true
+        cam2_aligned_depth_to_color_frame:
           Value: true
         cam2_color_frame:
           Value: false
@@ -163,6 +167,8 @@ Visualization Manager:
           Value: false
         cam2_link:
           Value: true
+        cam3_aligned_depth_to_color_frame:
+          Value: true
         cam3_color_frame:
           Value: false
         cam3_color_optical_frame:
@@ -172,6 +178,8 @@ Visualization Manager:
         cam3_depth_optical_frame:
           Value: false
         cam3_link:
+          Value: true
+        cam4_aligned_depth_to_color_frame:
           Value: true
         cam4_color_frame:
           Value: false
@@ -202,30 +210,38 @@ Visualization Manager:
       Tree:
         panda_link0:
           cam1_link:
-            cam1_color_frame:
+            cam1_aligned_depth_to_color_frame:
               cam1_color_optical_frame:
                 {}
+            cam1_color_frame:
+              {}
             cam1_depth_frame:
               cam1_depth_optical_frame:
                 {}
           cam2_link:
-            cam2_color_frame:
+            cam2_aligned_depth_to_color_frame:
               cam2_color_optical_frame:
                 {}
+            cam2_color_frame:
+              {}
             cam2_depth_frame:
               cam2_depth_optical_frame:
                 {}
           cam3_link:
-            cam3_color_frame:
+            cam3_aligned_depth_to_color_frame:
               cam3_color_optical_frame:
                 {}
+            cam3_color_frame:
+              {}
             cam3_depth_frame:
               cam3_depth_optical_frame:
                 {}
           cam4_link:
-            cam4_color_frame:
+            cam4_aligned_depth_to_color_frame:
               cam4_color_optical_frame:
                 {}
+            cam4_color_frame:
+              {}
             cam4_depth_frame:
               cam4_depth_optical_frame:
                 {}
@@ -251,7 +267,7 @@ Visualization Manager:
       Color: 255; 255; 255
       Color Transformer: RGB8
       Decay Time: 0
-      Enabled: true
+      Enabled: false
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Min Color: 0; 0; 0
@@ -266,7 +282,7 @@ Visualization Manager:
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
-      Value: true
+      Value: false
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -370,7 +386,7 @@ Visualization Manager:
       Decay Time: 0
       Depth Map Topic: /cam1/aligned_depth_to_color/image_raw
       Depth Map Transport Hint: raw
-      Enabled: false
+      Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Min Color: 0; 0; 0
@@ -386,7 +402,7 @@ Visualization Manager:
       Topic Filter: true
       Use Fixed Frame: true
       Use rainbow: true
-      Value: false
+      Value: true
     - Alpha: 1
       Auto Size:
         Auto Size Factor: 1
@@ -406,7 +422,7 @@ Visualization Manager:
       Decay Time: 0
       Depth Map Topic: /cam2/aligned_depth_to_color/image_raw
       Depth Map Transport Hint: raw
-      Enabled: false
+      Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Min Color: 0; 0; 0
@@ -422,7 +438,7 @@ Visualization Manager:
       Topic Filter: true
       Use Fixed Frame: true
       Use rainbow: true
-      Value: false
+      Value: true
     - Alpha: 1
       Auto Size:
         Auto Size Factor: 1
@@ -442,7 +458,7 @@ Visualization Manager:
       Decay Time: 0
       Depth Map Topic: /cam3/aligned_depth_to_color/image_raw
       Depth Map Transport Hint: raw
-      Enabled: false
+      Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Min Color: 0; 0; 0
@@ -458,7 +474,7 @@ Visualization Manager:
       Topic Filter: true
       Use Fixed Frame: true
       Use rainbow: true
-      Value: false
+      Value: true
     - Alpha: 1
       Auto Size:
         Auto Size Factor: 1
@@ -478,7 +494,7 @@ Visualization Manager:
       Decay Time: 0
       Depth Map Topic: /cam4/aligned_depth_to_color/image_raw
       Depth Map Transport Hint: raw
-      Enabled: false
+      Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Min Color: 0; 0; 0
@@ -494,7 +510,7 @@ Visualization Manager:
       Topic Filter: true
       Use Fixed Frame: true
       Use rainbow: true
-      Value: false
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -523,7 +539,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 0.19774995744228363
+      Distance: 0.3440338969230652
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -539,9 +555,9 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.5697963237762451
+      Pitch: 1.519796371459961
       Target Frame: <Fixed Frame>
-      Yaw: 0.05879847705364227
+      Yaw: 0.10880021005868912
     Saved: ~
 Window Geometry:
   Displays:
@@ -560,4 +576,4 @@ Window Geometry:
     collapsed: false
   Width: 2264
   X: 1160
-  Y: 192
+  Y: 54

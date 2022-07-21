@@ -14,7 +14,7 @@ import yaml
 from datetime import datetime
 from geometry_msgs.msg import TransformStamped
 from message_filters import ApproximateTimeSynchronizer, Subscriber
-from sensor_msgs.msg import PointCloud2
+from sensor_msgs.msg import Image
 from std_msgs.msg import UInt8, Float32, String
 from timeit import default_timer as timer
 from transforms3d.quaternions import *
@@ -45,7 +45,8 @@ n_actions_max = 1
 tiral = 0
 mode = ''
 robot = None
-def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
+def cloud_callback(cam1_color, cam2_color, cam3_color, cam4_color,
+    cam1_depth, cam2_depth, cam3_depth, cam4_depth):
     global signal
     global time_start
     global time_last
@@ -59,22 +60,30 @@ def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
             action_counted = False
             
             if time_start == 0.0:
-                time_start = cam1_msg.header.stamp.to_sec()
+                time_start = cam1_color.header.stamp.to_sec()
 
-            time_now = cam1_msg.header.stamp.to_sec() - time_start
-            time_diff_1 = cam2_msg.header.stamp.to_sec() - time_start - time_now
-            time_diff_2 = cam3_msg.header.stamp.to_sec() - time_start - time_now
-            time_diff_3 = cam4_msg.header.stamp.to_sec() - time_start - time_now
+            time_now = cam1_color.header.stamp.to_sec() - time_start
+            time_diff_1 = cam2_color.header.stamp.to_sec() - time_start - time_now
+            time_diff_2 = cam3_color.header.stamp.to_sec() - time_start - time_now
+            time_diff_3 = cam4_color.header.stamp.to_sec() - time_start - time_now
             
             if time_now == 0.0 or time_now - time_last > time_delta:
                 trial_path = os.path.join(data_path, str(trial).zfill(3))
                 os.system('mkdir -p ' + f"{trial_path}")
                 bag = rosbag.Bag(os.path.join(trial_path, f'{time_now:.3f}.bag'), 'w')
 
-                bag.write('/cam1/depth/color/points', cam1_msg)
-                bag.write('/cam2/depth/color/points', cam2_msg)
-                bag.write('/cam3/depth/color/points', cam3_msg)
-                bag.write('/cam4/depth/color/points', cam4_msg)
+                bag.write('/cam1/color/image_raw', cam1_color)
+                bag.write('/cam2/color/image_raw', cam2_color)
+                bag.write('/cam3/color/image_raw', cam3_color)
+                bag.write('/cam4/color/image_raw', cam4_color)
+                # bag.write('/cam1/depth/image_rect_raw', cam1_depth)
+                # bag.write('/cam2/depth/image_rect_raw', cam2_depth)
+                # bag.write('/cam3/depth/image_rect_raw', cam3_depth)
+                # bag.write('/cam4/depth/image_rect_raw', cam4_depth)
+                bag.write('/cam1/aligned_depth_to_color/image_raw', cam1_depth)
+                bag.write('/cam2/aligned_depth_to_color/image_raw', cam2_depth)
+                bag.write('/cam3/aligned_depth_to_color/image_raw', cam3_depth)
+                bag.write('/cam4/aligned_depth_to_color/image_raw', cam4_depth)
 
                 ee_pose = robot.get_ee_pose()
                 bag.write('/ee_pose', ee_pose)
@@ -84,7 +93,7 @@ def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
 
                 bag.close()
 
-                print(f"Trial {trial}: recorded pcd at {round(time_now, 3)} " + \
+                print(f"Trial {trial}: recorded rgbd at {round(time_now, 3)} " + \
                     f"({round(time_diff_1, 3)}, {round(time_diff_2, 3)}, {round(time_diff_3, 3)})...")
                 
                 time_last = time_now
@@ -104,10 +113,18 @@ def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
     elif mode == 'control':
         if signal == 1:
             bag = rosbag.Bag(data_path, 'w')
-            bag.write('/cam1/depth/color/points', cam1_msg)
-            bag.write('/cam2/depth/color/points', cam2_msg)
-            bag.write('/cam3/depth/color/points', cam3_msg)
-            bag.write('/cam4/depth/color/points', cam4_msg)
+            bag.write('/cam1/color/image_raw', cam1_color)
+            bag.write('/cam2/color/image_raw', cam2_color)
+            bag.write('/cam3/color/image_raw', cam3_color)
+            bag.write('/cam4/color/image_raw', cam4_color)
+            # bag.write('/cam1/depth/image_rect_raw', cam1_depth)
+            # bag.write('/cam2/depth/image_rect_raw', cam2_depth)
+            # bag.write('/cam3/depth/image_rect_raw', cam3_depth)
+            # bag.write('/cam4/depth/image_rect_raw', cam4_depth)
+            bag.write('/cam1/aligned_depth_to_color/image_raw', cam1_depth)
+            bag.write('/cam2/aligned_depth_to_color/image_raw', cam2_depth)
+            bag.write('/cam3/aligned_depth_to_color/image_raw', cam3_depth)
+            bag.write('/cam4/aligned_depth_to_color/image_raw', cam4_depth)
 
             # bag.write('/robot_pose', robot_pose_msg)
             ee_pose = robot.get_ee_pose()
@@ -118,12 +135,12 @@ def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
 
             bag.close()
 
-            print(f"Recorded pcd at {os.path.basename(data_path)}...")
+            print(f"Recorded rgbd at {os.path.basename(data_path)}...")
 
             # cd = os.path.dirname(os.path.realpath(sys.argv[0]))
             # debug_bag_path = os.path.join(cd, '..', 'raw_data', 'debug', 'state_0.bag')
             # os.system(f'cp {debug_bag_path} {data_path}")}')
-            # print(f"Copied pcd at {os.path.basename(data_path)}...")
+            # print(f"Copied rgbd at {os.path.basename(data_path)}...")
 
             signal = 0
 
@@ -146,12 +163,20 @@ def main():
 
     rospy.Subscriber("/signal", UInt8, signal_callback)
     rospy.Subscriber("/raw_data_path", String, path_callback)
-    
+
     tss = ApproximateTimeSynchronizer(
-        (Subscriber("/cam1/depth/color/points", PointCloud2), 
-        Subscriber("/cam2/depth/color/points", PointCloud2), 
-        Subscriber("/cam3/depth/color/points", PointCloud2), 
-        Subscriber("/cam4/depth/color/points", PointCloud2)),
+        (Subscriber("/cam1/color/image_raw", Image), 
+        Subscriber("/cam2/color/image_raw", Image), 
+        Subscriber("/cam3/color/image_raw", Image), 
+        Subscriber("/cam4/color/image_raw", Image),
+        # Subscriber("/cam1/depth/image_rect_raw", Image), 
+        # Subscriber("/cam2/depth/image_rect_raw", Image), 
+        # Subscriber("/cam3/depth/image_rect_raw", Image), 
+        # Subscriber("/cam4/depth/image_rect_raw", Image)),
+        Subscriber("/cam1/aligned_depth_to_color/image_raw", Image), 
+        Subscriber("/cam2/aligned_depth_to_color/image_raw", Image), 
+        Subscriber("/cam3/aligned_depth_to_color/image_raw", Image), 
+        Subscriber("/cam4/aligned_depth_to_color/image_raw", Image)),
         queue_size=100,
         slop=0.2
     )
@@ -162,8 +187,8 @@ def main():
     mode = sys.argv[1] # explore, record, or control
     if mode == 'explore':
         robot = random_explore.robot
-        # task_name = 'gripping_sym_robot_v3'
-        task_name = 'gripping_asym_robot_v3'
+        task_name = 'gripping_sym_robot_v3'
+        # task_name = 'gripping_asym_robot_v2'
         # task_name = 'rolling_small_robot_v1'
         # task_name = 'pressing_large_robot_v1'
         data_path = os.path.join(cd, '..', 'raw_data', task_name)
