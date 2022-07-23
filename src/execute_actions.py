@@ -18,8 +18,9 @@ import manipulate
 robot = manipulate.ManipulatorSystem()
 
 task_tool_mapping = {
-    'gripping_sym': 'gripper_sym', 
     'gripping_asym': 'gripper_asym', 
+    'gripping_sym_rod': 'gripper_sym_rod',
+    'gripping_sym_plane': 'gripper_sym_plane', 
     'rolling': 'roller', 
     'pressing': 'stamp',
 }

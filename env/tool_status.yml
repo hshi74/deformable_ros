@@ -4,7 +4,10 @@ circular_cutter:
 gripper_asym:
   loc: 1
   status: ready
-gripper_sym:
+gripper_sym_rod:
+  loc: 0
+  status: ready
+gripper_sym_plane:
   loc: 0
   status: ready
 hook:

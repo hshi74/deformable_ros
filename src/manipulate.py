@@ -38,7 +38,7 @@ class ManipulatorSystem:
                 'Kxd': torch.tensor([35., 35., 35., 14., 14., 14.])
             },
             'high': {
-                'Kx': torch.tensor([1200., 1200., 1200., 160., 160., 160.]),
+                'Kx': torch.tensor([2400., 2400., 2400., 640., 640., 640.]),
                 'Kxd': torch.tensor([35., 35., 35., 14., 14., 14.])
             }
         }
@@ -69,7 +69,8 @@ class ManipulatorSystem:
                 self.tool_status = yaml.load(f, Loader=yaml.FullLoader)
         else:
             self.tool_status = {
-                'gripper_sym': {'loc': 0, 'status': 'ready'},
+                'gripper_sym_rod': {'loc': 0, 'status': 'ready'},
+                'gripper_sym_plane': {'loc': 0, 'status': 'ready'},
                 'gripper_asym': {'loc': 1, 'status': 'ready'},
                 'roller': {'loc': 2, 'status': 'ready'},
                 'stamp': {'loc': 3, 'status': 'ready'},

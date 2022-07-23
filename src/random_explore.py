@@ -12,8 +12,9 @@ robot = manipulate.ManipulatorSystem()
 
 task_tool_mapping = {
     'cutting': 'planar',
-    'gripping_sym': 'gripper_sym', 
     'gripping_asym': 'gripper_asym', 
+    'gripping_sym_rod': 'gripper_sym_rod', 
+    'gripping_sym_plane': 'gripper_sym_plane', 
     'rolling': 'roller', 
     'pressing': 'stamp',
 }
@@ -79,7 +80,7 @@ def random_grip(n_grips, pos_noise_scale=0.02, grip_width_noise=0.02):
     # Perform gripping
     grip_pos = np.array([0.4, -0.1])
     
-    grip_h = 0.175
+    grip_h = 0.18
     pregrip_dh = 0.1
     for i in range(n_grips):
         # sample grip
@@ -91,7 +92,7 @@ def random_grip(n_grips, pos_noise_scale=0.02, grip_width_noise=0.02):
         elif rot_noise < -np.pi / 2:
             rot_noise += np.pi
 
-        grip_width = np.random.rand() * (grip_width_noise - 0.001) + 0.001
+        grip_width = np.random.rand() * (grip_width_noise - 0.005) + 0.005
 
         grip_pos_x = grip_pos[0] - pos_noise * np.sin(rot_noise - np.pi / 2)
         grip_pos_y = grip_pos[1] + pos_noise * np.cos(rot_noise - np.pi / 2)
