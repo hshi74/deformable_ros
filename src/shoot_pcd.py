@@ -162,10 +162,10 @@ def main():
     mode = sys.argv[1] # explore, record, or control
     if mode == 'explore':
         robot = random_explore.robot
-        task_name = 'gripping_sym_plane_robot_v3'
+        # task_name = 'gripping_sym_plane_robot_v3'
         # task_name = 'gripping_asym_robot_v3'
         # task_name = 'rolling_small_robot_v1'
-        # task_name = 'pressing_large_robot_v1'
+        task_name = 'pressing_small_robot_v1'
         data_path = os.path.join(cd, '..', 'raw_data', task_name)
         os.system('mkdir -p ' + f"{data_path}")
         data_list = sorted(glob.glob(os.path.join(data_path, '*')))

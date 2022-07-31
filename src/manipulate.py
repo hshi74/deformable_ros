@@ -36,6 +36,10 @@ class ManipulatorSystem:
             'low': {
                 'Kx': torch.tensor([300., 300., 300., 40., 40., 40.]),
                 'Kxd': torch.tensor([35., 35., 35., 14., 14., 14.])
+            }, 
+            'medium': {
+                'Kx': torch.tensor([1200., 1200., 1200., 160., 160., 160.]),
+                'Kxd': torch.tensor([35., 35., 35., 14., 14., 14.])
             },
             'high': {
                 'Kx': torch.tensor([2400., 2400., 2400., 640., 640., 640.]),
@@ -45,7 +49,7 @@ class ManipulatorSystem:
 
         self.planner_dt = 0.01
 
-        self.set_policy(self.gain_dict['high']['Kx'], self.gain_dict['high']['Kxd'])
+        self.set_policy(self.gain_dict['low']['Kx'], self.gain_dict['low']['Kxd'])
 
         self.gripper = GripperInterface(
             ip_address="192.168.0.2",
@@ -64,21 +68,44 @@ class ManipulatorSystem:
 
         cd = os.path.dirname(os.path.realpath(sys.argv[0]))
         self.tool_status_path = os.path.join(cd, '..', 'env', 'tool_status.yml')
-        if os.path.exists(self.tool_status_path):
-            with open(self.tool_status_path, 'r') as f:
-                self.tool_status = yaml.load(f, Loader=yaml.FullLoader)
-        else:
-            self.tool_status = {
-                'gripper_sym_rod': {'loc': 0, 'status': 'ready'},
-                'gripper_sym_plane': {'loc': 0, 'status': 'ready'},
-                'gripper_asym': {'loc': 1, 'status': 'ready'},
-                'roller': {'loc': 2, 'status': 'ready'},
-                'stamp': {'loc': 3, 'status': 'ready'},
-                'circular_cutter': {'loc': -1, 'status': 'ready'},
-                'hook': {'loc': -1, 'status': 'ready'},
-                'planar_cutter': {'loc': -1, 'status': 'ready'},
-                'shovel': {'loc': -1, 'status': 'ready'},
-            }
+        # if os.path.exists(self.tool_status_path):
+        #     with open(self.tool_status_path, 'r') as f:
+        #         self.tool_status = yaml.load(f, Loader=yaml.FullLoader)
+        # else:
+        self.tool_status = {
+            'gripper_asym': {'loc': 'l0-0', 'status': 'ready'},
+            'gripper_sym_plane': {'loc': 'l0-1', 'status': 'ready'},
+            'gripper_sym_rod': {'loc': 'l0-2', 'status': 'ready'},
+            'gripper_sym_spatula': {'loc': 'l1', 'status': 'ready'},
+            'roller_large': {'loc': 'f0-low', 'status': 'ready'},
+            'stamp_circle_large': {'loc': 'f0-mid', 'status': 'ready'},
+            'stamp_circle_small': {'loc': 'f0-high', 'status': 'ready'},
+            'roller_small': {'loc': 'f1-low', 'status': 'ready'},
+            'stamp_square_large': {'loc': 'f1-mid', 'status': 'ready'},
+            'stamp_square_small': {'loc': 'f1-high', 'status': 'ready'},
+            'cutter_planar': {'loc': 'f2-low', 'status': 'ready'},
+            'cutter_circular': {'loc': 'f2-mid', 'status': 'ready'},
+            'hook': {'loc': 'f2-high', 'status': 'ready'},
+        }
+
+        with open(self.tool_status_path, 'w') as f:
+            yaml.dump(self.tool_status, f)
+
+        self.loc_param_dict = {
+            'l0-0': [0.345, 0.295, -np.pi / 4, 0.32],
+            'l0-1': [0.41, 0.29, -np.pi / 4, 0.32],
+            'l0-2': [0.46, 0.29, -np.pi / 4, 0.32],
+            'l1': [0.625, 0.265, np.pi / 4, 0.325],
+            'f0-low': [0.5975, -0.255, -np.pi / 4, 0.225],
+            'f0-mid': [0.66, -0.255, -np.pi / 4, 0.335],
+            'f0-high': [0.7275, -0.26, -np.pi / 4, 0.44],
+            'f1-low': [0.5975, -0.08, -np.pi / 4, 0.225],
+            'f1-mid': [0.665, -0.085, -np.pi / 4, 0.335],
+            'f1-high': [0.7275, -0.085, -np.pi / 4, 0.44],
+            'f2-low': [0.6025, 0.085, -np.pi / 4, 0.225],
+            'f2-mid': [0.665, 0.085, -np.pi / 4, 0.335],
+            'f2-high': [0.7275, 0.08, -np.pi / 4, 0.44],
+        }
 
         # self.reset()
 
@@ -244,24 +271,19 @@ class ManipulatorSystem:
         else:
             raise NotImplementedError
 
-        if loc == 0:
-            self.take_away(grip_params=(0.35, 0.31, np.pi / 4), grip_h=0.315, pregrip_dh=0.01, grip_width=0.01, lift_dh=0.1, loc='left', debug=debug)
-        elif loc == 1:
-            self.take_away(grip_params=(0.56, 0.27, np.pi / 4), grip_h=0.315, pregrip_dh=0.01, grip_width=0.01, lift_dh=0.1, loc='left', debug=debug)
-        elif loc == 2:
-            self.take_away(grip_params=(0.66, 0.185, -np.pi / 4), grip_h=0.325, pregrip_dh=0.01, grip_width=0.015, debug=debug)
-        elif loc == 3:
-            self.take_away(grip_params=(0.66, 0.06, -np.pi / 4), grip_h=0.325, pregrip_dh=0.01, grip_width=0.015, debug=debug)
-        elif loc == 4:
-            self.take_away(grip_params=(0.66, -0.1, -np.pi / 4), grip_h=0.325, pregrip_dh=0.01, grip_width=0.015, debug=debug)
-        elif loc == 5:
-            self.take_away(grip_params=(0.66, -0.225, -np.pi / 4), grip_h=0.325, pregrip_dh=0.01, grip_width=0.015, debug=debug)
+        if 'l0' in loc or 'l1' in loc:
+            self.take_away(grip_params=self.loc_param_dict[loc][:3], 
+                grip_h=self.loc_param_dict[loc][3], pregrip_dh=0.015,
+                grip_width=0.01, lift_dh=0.15, loc=loc, debug=debug)
         else:
-            raise NotImplementedError
+            self.take_away(grip_params=self.loc_param_dict[loc][:3], 
+                grip_h=self.loc_param_dict[loc][3], pregrip_dh=0.015, 
+                grip_width=0.0175, lift_dh=0.005, loc=loc, debug=debug)
 
-        self.tool_status[tool] = 'using'
-        with open(self.tool_status_path, 'w') as f:
-            yaml.dump(self.tool_status, f)
+        if not debug:
+            self.tool_status[tool]['status'] = 'using'
+            with open(self.tool_status_path, 'w') as f:
+                yaml.dump(self.tool_status, f)
 
 
     def put_back_tool(self, tool):
@@ -270,68 +292,78 @@ class ManipulatorSystem:
         else:
             raise NotImplementedError
 
-        if loc == 0:
-            self.put_back_gripper(grip_params=(0.355, 0.305, np.pi / 4), grip_h=0.315, pregrip_dh=0.03)
-        elif loc == 1:
-            self.put_back_gripper(grip_params=(0.565, 0.265, np.pi / 4), grip_h=0.315, pregrip_dh=0.05)
-        elif loc == 2:
-            self.put_back(grip_params=(0.66, 0.185, -np.pi / 4), grip_h=0.32, pregrip_dh=0.015)
-        elif loc == 3:
-            self.put_back(grip_params=(0.66, 0.06, -np.pi / 4), grip_h=0.32, pregrip_dh=0.015)
-        elif loc == 4:
-            self.put_back(grip_params=(0.66, -0.1, -np.pi / 4), grip_h=0.32, pregrip_dh=0.015)
-        elif loc == 5:
-            self.put_back(grip_params=(0.66, -0.225, -np.pi / 4), grip_h=0.32, pregrip_dh=0.015)
+        if 'l0' in loc or 'l1' in loc:
+            self.put_back(grip_params=self.loc_param_dict[loc][:3],
+                grip_h=self.loc_param_dict[loc][3] - 0.01, 
+                pregrip_dh=0.03, lift_dh=0.15, loc=loc)
         else:
-            raise NotImplementedError
-        
-        self.tool_status[tool] = 'ready'
+            self.put_back(grip_params=self.loc_param_dict[loc][:3], 
+                grip_h=self.loc_param_dict[loc][3] - 0.01, 
+                pregrip_dh=0.015, lift_dh=0.03, loc=loc)
+
+        self.tool_status[tool]['status'] = 'ready'
         with open(self.tool_status_path, 'w') as f:
             yaml.dump(self.tool_status, f)
 
 
-    def take_away(self, grip_params, grip_h, pregrip_dh, grip_width, lift_dh=0.01, loc='front', debug=False):
+    def take_away(self, grip_params, grip_h, pregrip_dh, grip_width, lift_dh, loc, debug=False):
         pregrip_h = grip_h + pregrip_dh
-        lift_h = grip_h + pregrip_dh + lift_dh
+        lift_h = grip_h + lift_dh
 
-        # hard code to account for taking away the gripper
-        if loc == 'left':
+        if 'l0' in loc or 'l1' in loc:
             self.open_gripper()
         else:
-            self.close_gripper(grip_width + 0.04, blocking=False)
+            self.close_gripper(grip_width + 0.03, blocking=False)
 
         self.set_policy(self.gain_dict['low']['Kx'], self.gain_dict['low']['Kxd'])
         self.move_to(*self.rest_pose)
-        self.set_policy(self.gain_dict['high']['Kx'], self.gain_dict['high']['Kxd'])
+        self.set_policy(self.gain_dict['medium']['Kx'], self.gain_dict['medium']['Kxd'])
+        # prep_pose = self.pos_rz_to_pose((self.rest_pos[0], self.rest_pos[1], grip_params[2]), pregrip_h)
+        # self.move_to(*prep_pose, time_to_go=1.0)
 
-        prep_pose = self.pos_rz_to_pose((self.rest_pos[0], self.rest_pos[1], grip_params[2]), pregrip_h)
-        self.move_to(*prep_pose)
+        if 'l0' in loc or 'l1' in loc:
+            if 'l0' in loc:
+                prep_params = (grip_params[0] + 0.02, grip_params[1], grip_params[2])
+            else:
+                prep_params = (grip_params[0], grip_params[1] - 0.02, grip_params[2])
 
-        # Move to an idle pose before pregrip
-        print("=> align two axes:")
-        if loc == 'front':
-            prepregrip_pose = self.pos_rz_to_pose((grip_params[0] - 0.1, grip_params[1], grip_params[2]), pregrip_h)
-        elif loc == 'left':
-            prepregrip_pose = self.pos_rz_to_pose((grip_params[0], grip_params[1] - 0.1, grip_params[2]), pregrip_h)
-        elif loc == 'right':
-            prepregrip_pose = self.pos_rz_to_pose((grip_params[0], grip_params[1] + 0.1, grip_params[2]), pregrip_h)
+            print("=> align y-axis:")
+            preprepregrip_pose = self.pos_rz_to_pose(prep_params, lift_h)
+            self.move_to(*preprepregrip_pose)
+
+            print("=> move down:")
+            prepregrip_pose = self.pos_rz_to_pose(prep_params, pregrip_h)
+            self.move_to(*prepregrip_pose, time_to_go=1.0)
+
+            print("=> move to pregrip:")
+            pregrip_pose = self.pos_rz_to_pose(grip_params, pregrip_h)
+            self.move_to(*pregrip_pose, time_to_go=1.0)
         else:
-            raise NotImplementedError
-        self.move_to(*prepregrip_pose)
+            print("=> align two axes:")
+            prepregrip_pose = self.pos_rz_to_pose((grip_params[0] - 0.1, grip_params[1], grip_params[2]), pregrip_h)
+            self.move_to(*prepregrip_pose)
 
-        # Move to pregrip
-        print("=> move to pregrip:")
-        pregrip_pose = self.pos_rz_to_pose(grip_params, pregrip_h)
-        self.move_to(*pregrip_pose)
+            print("=> move to pregrip:")
+            pregrip_pose = self.pos_rz_to_pose(grip_params, pregrip_h)
+            self.move_to(*pregrip_pose, time_to_go=1.0)
 
-        # Lower (slower than other motions to prevent sudden collisions)
         print("=> grip:")
         grip_pose = self.pos_rz_to_pose(grip_params, grip_h)
-        self.move_to(*grip_pose)
+        self.move_to(*grip_pose, time_to_go=1.0)
 
         # grip
         if not debug:
             self.close_gripper(grip_width, blocking=False)
+            time.sleep(0.5)
+
+        if 'l1' in loc:
+            # Lift the tool
+            print("=> lift the tool a little bit:")
+            lift_pose = self.pos_rz_to_pose(grip_params, grip_h + 0.03)
+            self.move_to(*lift_pose)
+
+            self.close_gripper(0.04, blocking=False)
+            time.sleep(1.5)
 
         # Lift the tool
         print("=> lift the tool:")
@@ -340,114 +372,78 @@ class ManipulatorSystem:
         
         # grip the tool from the shelf
         print("=> take away the tool:")
-        if loc == 'front':
+        if not 'l0' in loc and not 'l1' in loc:
             idle_pose = self.pos_rz_to_pose((grip_params[0] - 0.1, grip_params[1], grip_params[2]), lift_h)
-        elif loc == 'left':
-            idle_pose = self.pos_rz_to_pose((grip_params[0], grip_params[1] - 0.1, grip_params[2]), lift_h)
-        elif loc == 'right':
-            idle_pose = self.pos_rz_to_pose((grip_params[0], grip_params[1] + 0.1, grip_params[2]), lift_h)
-        else:
-            raise NotImplementedError
-        self.move_to(*idle_pose)
+            self.move_to(*idle_pose, time_to_go=1.0)
 
-        print("=> move back to prep pose:")
-        prep_pose = self.pos_rz_to_pose((self.rest_pos[0], self.rest_pos[1], grip_params[2]), pregrip_h)
-        self.move_to(*prep_pose)
+        # print("=> move back to prep pose:")
+        # prep_pose = self.pos_rz_to_pose((self.rest_pos[0], self.rest_pos[1], grip_params[2]), pregrip_h)
+        # self.move_to(*prep_pose)
 
         self.set_policy(self.gain_dict['low']['Kx'], self.gain_dict['low']['Kxd'])
         self.move_to(*self.rest_pose)
-        self.set_policy(self.gain_dict['high']['Kx'], self.gain_dict['high']['Kxd'])
 
 
-    def put_back(self, grip_params, grip_h, pregrip_dh, lift_dh=0.1, loc='front'):
+    def put_back(self, grip_params, grip_h, pregrip_dh, lift_dh, loc):
         pregrip_h = grip_h + pregrip_dh
-        lift_h = grip_h + pregrip_dh + lift_dh
+        lift_h = grip_h + lift_dh
 
         self.set_policy(self.gain_dict['low']['Kx'], self.gain_dict['low']['Kxd'])
         self.move_to(*self.rest_pose)
-        self.set_policy(self.gain_dict['high']['Kx'], self.gain_dict['high']['Kxd'])
+        self.set_policy(self.gain_dict['medium']['Kx'], self.gain_dict['medium']['Kxd'])
 
-        prep_pose = self.pos_rz_to_pose((self.rest_pos[0], self.rest_pos[1], grip_params[2]), pregrip_h)
-        self.move_to(*prep_pose)
+        # prep_pose = self.pos_rz_to_pose((self.rest_pos[0], self.rest_pos[1], grip_params[2]), pregrip_h)
+        # self.move_to(*prep_pose, time_to_go=1.0)
 
-        # Get to the insert position
-        print("=> get to the insert position:")
-        if loc == 'front':
-            preinsert_pose = self.pos_rz_to_pose((grip_params[0] - 0.1, grip_params[1], grip_params[2]), pregrip_h)
-        elif loc == 'left':
-            preinsert_pose = self.pos_rz_to_pose((grip_params[0], grip_params[1] - 0.1, grip_params[2]), pregrip_h)
-        elif loc == 'right':
-            preinsert_pose = self.pos_rz_to_pose((grip_params[0], grip_params[1] + 0.1, grip_params[2]), pregrip_h)
+        if 'l0' in loc or 'l1' in loc:
+            close_width = 0.03 if 'l0' in loc else 0.04
+            self.close_gripper(close_width, blocking=False)
+
+        if 'l0' in loc or 'l1' in loc:
+            print("=> align y-axis:")
+            preinsert_pose = self.pos_rz_to_pose(grip_params, lift_h)
+            self.move_to(*preinsert_pose)
+
+            # print("=> get to the insert position:")
+            # insert_pose = self.pos_rz_to_pose((grip_params[0] + 0.005, grip_params[1], grip_params[2]), pregrip_h)
+            # self.move_to(*insert_pose)
+
+            # print("=> get to the put-down position:")
+            # idle_pose = self.pos_rz_to_pose(grip_params, pregrip_h)
+            # self.move_to(*idle_pose, time_to_go=0.5)
+
+            print("=> put down:")
+            grip_pose = self.pos_rz_to_pose(grip_params, grip_h)
+            self.move_to(*grip_pose)
         else:
-            raise NotImplementedError
-        self.move_to(*preinsert_pose)
+            print("=> get to the insert position:")
+            preinsert_pose = self.pos_rz_to_pose((grip_params[0] - 0.1, grip_params[1], grip_params[2]), pregrip_h)
+            self.move_to(*preinsert_pose)
 
-        print("=> insert:")
-        insert_pose = self.pos_rz_to_pose(grip_params, pregrip_h)
-        self.move_to(*insert_pose)
+            print("=> insert:")
+            insert_pose = self.pos_rz_to_pose(grip_params, pregrip_h)
+            self.move_to(*insert_pose, time_to_go=1.0)
 
         # Release
         self.open_gripper()
+        time.sleep(0.5)
 
         # Move to pregrip
         print("=> lift:")
         lift_pose = self.pos_rz_to_pose(grip_params, lift_h)
-        self.move_to(*lift_pose)
+        self.move_to(*lift_pose, time_to_go=1.0)
 
-        print("=> move back to prep pose:")
-        prep_pose = self.pos_rz_to_pose((self.rest_pos[0], self.rest_pos[1], grip_params[2]), pregrip_h)
-        self.move_to(*prep_pose)
-
-        self.set_policy(self.gain_dict['low']['Kx'], self.gain_dict['low']['Kxd'])
-        self.move_to(*self.rest_pose)
-        self.set_policy(self.gain_dict['high']['Kx'], self.gain_dict['high']['Kxd'])
-
-
-    def put_back_gripper(self, grip_params, grip_h, pregrip_dh, lift_dh=0.1):
-        pregrip_h = grip_h + pregrip_dh
-        lift_h = grip_h + pregrip_dh + lift_dh
+        # print("=> move back to prep pose:")
+        # prep_pose = self.pos_rz_to_pose((self.rest_pos[0], self.rest_pos[1], grip_params[2]), pregrip_h)
+        # self.move_to(*prep_pose)
 
         self.set_policy(self.gain_dict['low']['Kx'], self.gain_dict['low']['Kxd'])
         self.move_to(*self.rest_pose)
-        self.set_policy(self.gain_dict['high']['Kx'], self.gain_dict['high']['Kxd'])
-
-        prep_pose = self.pos_rz_to_pose((self.rest_pos[0], self.rest_pos[1], grip_params[2]), pregrip_h)
-        self.move_to(*prep_pose)
-
-        self.close_gripper(0.04, blocking=False)
-
-         # Get to the insert position
-        print("=> get to the insert position:")
-        preinsert_pose = self.pos_rz_to_pose((grip_params[0], grip_params[1] - 0.1, grip_params[2]), pregrip_h)
-        self.move_to(*preinsert_pose)
-
-        # Get to the put-down position
-        print("=> get to the put-down position:")
-        idle_pose = self.pos_rz_to_pose(grip_params, pregrip_h)
-        self.move_to(*idle_pose)
-
-        print("=> put down:")
-        grip_pose = self.pos_rz_to_pose(grip_params, grip_h)
-        self.move_to(*grip_pose)
-
-        # Release
-        self.open_gripper()
-
-        # Move to pregrip
-        print("=> lift:")
-        pregrip_pose = self.pos_rz_to_pose(grip_params, lift_h)
-        self.move_to(*pregrip_pose)
-
-        print("=> back to prep pose:")
-        prep_pose = self.pos_rz_to_pose((self.rest_pos[0], self.rest_pos[1], grip_params[2]), pregrip_h)
-        self.move_to(*prep_pose)
-
-        self.set_policy(self.gain_dict['low']['Kx'], self.gain_dict['low']['Kxd'])
-        self.move_to(*self.rest_pose)
-        self.set_policy(self.gain_dict['high']['Kx'], self.gain_dict['high']['Kxd'])
 
 
     def cut(self, cut_pos, cut_rot, precut_dh, mode='explore'):
+        self.set_policy(self.gain_dict['high']['Kx'], self.gain_dict['high']['Kxd'])
+
         # Move to precut
         print("=> precut:")
         precut_pos = [cut_pos[0], cut_pos[1], cut_pos[2] + precut_dh]
@@ -478,6 +474,8 @@ class ManipulatorSystem:
 
 
     def grip(self, grip_params, grip_h, pregrip_dh, grip_width, mode='explore'):
+        self.set_policy(self.gain_dict['high']['Kx'], self.gain_dict['high']['Kxd'])
+
         # Move to pregrip
         print("=> pregrip:")
         self.open_gripper()
@@ -494,7 +492,7 @@ class ManipulatorSystem:
             time.sleep(0.1)
 
         # grip
-        self.close_gripper(grip_width, blocking=False, grip_params=(0.02, 150))
+        self.close_gripper(grip_width, blocking=False, grip_params=(0.01, 300))
 
         # if mode == 'react':
         #     time.sleep(5.0)
@@ -518,6 +516,8 @@ class ManipulatorSystem:
 
 
     def roll(self, start_pos, roll_rot, end_pos, preroll_dh, mode='explore'):
+        self.set_policy(self.gain_dict['high']['Kx'], self.gain_dict['high']['Kxd'])
+
         # Move to preroll
         print("=> preroll:")
         preroll_pos = [start_pos[0], start_pos[1], start_pos[2] + preroll_dh]
@@ -551,6 +551,8 @@ class ManipulatorSystem:
 
 
     def press(self, press_pos, press_rot, prepress_dh, mode='explore'):
+        self.set_policy(self.gain_dict['high']['Kx'], self.gain_dict['high']['Kxd'])
+
         # Move to prepress
         print("=> prepress:")
         prepress_pos = [press_pos[0], press_pos[1], press_pos[2] + prepress_dh]
@@ -576,3 +578,39 @@ class ManipulatorSystem:
 
         print("=> back to prepress:")
         self.move_to(*prepress_pose)
+
+
+def main():
+    # debug pick and place tools
+    # rospy.init_node('debug_manipulate', anonymous=True)
+
+    robot = ManipulatorSystem()
+
+    # rate = rospy.Rate(100)
+    # while not rospy.is_shutdown():
+    #     command = input("Please enter the name of the tool: \n")
+    #     if command == 'c':
+    #         break
+    #     else:
+    #         command_list = command.split('+')
+    #         if command_list[0] == 'p':
+    #             robot.put_back_tool(command_list[1])
+    #         else:
+    #             robot.take_away_tool(command_list[1], debug=False)
+
+    #     rate.sleep()
+
+    import random
+    tool_list = ['gripper_asym', 'gripper_sym_plane', 'gripper_sym_rod', 
+    'roller_large', 'stamp_circle_large', 'stamp_circle_small',
+    'roller_small', 'stamp_square_large', 'stamp_square_small',
+    'cutter_planar', 'cutter_circular', 'hook']
+    random.shuffle(tool_list)
+
+    for tool in tool_list:
+        robot.take_away_tool(tool, debug=False)
+        robot.put_back_tool(tool)
+
+
+if __name__ == "__main__":
+    main() 

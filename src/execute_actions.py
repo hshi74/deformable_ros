@@ -22,7 +22,8 @@ task_tool_mapping = {
     'gripping_sym_rod': 'gripper_sym_rod',
     'gripping_sym_plane': 'gripper_sym_plane', 
     'rolling': 'roller', 
-    'pressing': 'stamp',
+    'pressing_large': 'stamp_large',
+    'pressing_small': 'stamp_small',
 }
 
 param_seq = None
@@ -75,7 +76,7 @@ def run(task_name, param_seq):
     if 'gripping' in task_name:
         param_seq = param_seq.reshape(-1, 3)
         for i in range(len(param_seq)):
-            grip_h = 0.175
+            grip_h = 0.18
             pregrip_dh = 0.1
             pos_noise, rot_noise, grip_width = param_seq[i]
             grip_pos_x = 0.4 - pos_noise * np.sin(rot_noise - np.pi / 2)
@@ -132,6 +133,7 @@ def react():
             task_name = command_list[1]
 
         if command == 'run':
+            import pdb; pdb.set_trace()
             selected_tool = task_tool_mapping[task_name]
             if robot.tool_status[selected_tool] == 'ready':
                 for tool, status in robot.tool_status.items():

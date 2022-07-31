@@ -26,13 +26,13 @@ rot_curr = [0.0, 0.0, np.pi / 4]
 init_pos_stride = 0.02
 init_rot_stride = np.pi / 16
 init_width_stride = 0.02
-manipulating = False
+# manipulating = False
 
 # NEED TO initialize LT and RT before controllng with joystick
 def joy_callback(msg):
     global pos_curr
     global rot_curr
-    global manipulating
+    # global manipulating
 
     # LB, RB, button 1, button 2, LT & LB
     if msg.buttons[4] or msg.buttons[5]:
@@ -83,10 +83,11 @@ def joy_callback(msg):
         pos_stride = init_pos_stride
         # print(f"lower: {lb_ratio}; upper: {ub_ratio}; stride: {pos_stride}")
 
-        if manipulating:
-            time_to_go = 3.0
-        else:
-            time_to_go = 0.5
+        # if manipulating:
+        #     time_to_go = 3.0
+        # else:
+        
+        time_to_go = 0.5
 
         # B
         if msg.buttons[1]:
@@ -168,13 +169,13 @@ def joy_callback(msg):
             if width >= 0.01:
                 robot.close_gripper(width, blocking=False, grip_params=(0.01, 50.0))
 
-    elif msg.axes[0]:
-        print("========== start manipulating... ==========")
-        manipulating = True
+    # elif msg.axes[0]:
+    #     print("========== start manipulating... ==========")
+    #     manipulating = True
 
-    elif msg.axes[3]:
-        print("========== end manipulating... ==========")
-        manipulating = False
+    # elif msg.axes[3]:
+    #     print("========== end manipulating... ==========")
+    #     manipulating = False
 
 
 # Initialize interfaces

@@ -1,27 +1,39 @@
-circular_cutter:
-  loc: -1
+cutter_circular:
+  loc: f2-mid
+  status: ready
+cutter_planar:
+  loc: f2-low
   status: ready
 gripper_asym:
-  loc: 1
-  status: ready
-gripper_sym_rod:
-  loc: 0
+  loc: l0-0
   status: ready
 gripper_sym_plane:
-  loc: 0
+  loc: l0-1
+  status: ready
+gripper_sym_rod:
+  loc: l0-2
+  status: ready
+gripper_sym_spatula:
+  loc: l1
   status: ready
 hook:
-  loc: -1
+  loc: f2-high
   status: ready
-planar_cutter:
-  loc: -1
+roller_large:
+  loc: f0-low
   status: ready
-roller:
-  loc: 2
+roller_small:
+  loc: f1-low
   status: ready
-shovel:
-  loc: -1
+stamp_circle_large:
+  loc: f0-mid
   status: ready
-stamp:
-  loc: 3
+stamp_circle_small:
+  loc: f0-high
+  status: ready
+stamp_square_large:
+  loc: f1-mid
+  status: ready
+stamp_square_small:
+  loc: f1-high
   status: ready
