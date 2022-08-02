@@ -24,56 +24,89 @@ signal = 0
 
 # Initialize interfaces
 def main():
-    global signal
+    # global signal
 
-    if len(sys.argv) < 2:
-        print("Please enter the task name!")
-        return
+    # if len(sys.argv) < 2:
+    #     print("Please enter the task name!")
+    #     return
 
-    task_name = sys.argv[1]
-    tool = task_tool_mapping[task_name]
-    rospy.init_node(task_name, anonymous=True)
+    # task_name = sys.argv[1]
+    # tool = task_tool_mapping[task_name]
+    rospy.init_node('random_explore', anonymous=True)
 
-    rate = rospy.Rate(100)
-    while not rospy.is_shutdown():
-        print(f"start (s), run (r), end (e), or stop (c)?")
-        key = readchar.readkey()
-        print(key)
-        if key == 's':
-            # take away the tool
-            if robot.tool_status[tool] == 'ready':
-                print(f"========== taking away {tool} ==========")
-                robot.take_away_tool(tool)
-        elif key == 'r':
-            if task_name == 'cutting':
-                random_cut()
-            elif 'gripping' in task_name:
-                random_grip(5)
-            elif task_name == 'rolling':
-                random_roll()
-            elif task_name == 'pressing':
-                random_press(3)
-            else:
-                raise NotImplementedError
-        elif key == 'e':
-            if robot.tool_status[tool] == 'using':
-                print(f"========== putting back {tool} ==========")
-                robot.put_back_tool(tool)
-        elif key == 'c':
-            break
+    # rate = rospy.Rate(100)
+    # while not rospy.is_shutdown():
+    #     print(f"start (s), run (r), end (e), or stop (c)?")
+    #     key = readchar.readkey()
+    #     print(key)
+    #     if key == 's':
+    #         # take away the tool
+    #         if robot.tool_status[tool] == 'ready':
+    #             print(f"========== taking away {tool} ==========")
+    #             robot.take_away_tool(tool)
+    #     elif key == 'r':
+    #         if task_name == 'cutting':
+    #             random_cut()
+    #         elif 'gripping' in task_name:
+    #             random_grip(5)
+    #         elif task_name == 'rolling':
+    #             random_roll()
+    #         elif task_name == 'pressing':
+    #             random_press(3)
+    #         else:
+    #             raise NotImplementedError
+    #     elif key == 'e':
+    #         if robot.tool_status[tool] == 'using':
+    #             print(f"========== putting back {tool} ==========")
+    #             robot.put_back_tool(tool)
+    #     elif key == 'c':
+    #         break
+    #     else:
+    #         print('Unrecoganized command!')
+
+    #     rate.sleep()
+
+    import random
+    tool_list = ['gripper_asym', 'gripper_sym_plane', 'gripper_sym_rod', 'gripper_sym_spatula', 
+    'roller_large', 'stamp_circle_large', 'stamp_circle_small',
+    'roller_small', 'stamp_square_large', 'stamp_square_small',
+    'cutter_planar', 'cutter_circular', 'hook']
+    random.shuffle(tool_list)
+
+    tool_list = ['gripper_sym_spatula']
+
+    for tool in tool_list:
+        robot.take_away_tool(tool, debug=False)
+        
+        if 'spatula' in tool:
+            robot.pick_and_place((0.4, -0.1, -np.pi / 4), 0.18, 0.1, 
+                (0.41, -0.29, -np.pi / 4), 0.22, 0.05, 0.02)
+        elif 'gripper' in tool:
+            random_grip(2)
+        elif 'roller' in tool:
+            random_roll(2)
+        elif 'stamp' in tool:
+            random_press(2)
+        elif 'cutter_planar' in tool:
+            random_cut(2, cut_h=0.215)
+        elif 'cutter_circular' in tool:
+            random_cut(2, cut_h=0.175)
+        elif 'hook' in tool:
+            robot.hook_dumpling_clip([0.41, -0.2, 0.2])
         else:
-            print('Unrecoganized command!')
+            raise NotImplementedError
+        
+        robot.put_back_tool(tool)
 
-        rate.sleep()
 
-
-def random_cut(pos_noise_scale=0.03):
-    pos_noise_y = pos_noise_scale * (np.random.rand() * 2 - 1)
-    print(pos_noise_y)
-    cut_pos = [0.4, -0.1 + pos_noise_y, 0.23]
-    cut_rot = [0.0, -0.05, np.pi / 4]
+def random_cut(n_cuts, cut_h, pos_noise_scale=0.03):
     precut_dh = 0.07
-    robot.cut(cut_pos, cut_rot, precut_dh)
+    for i in range(n_cuts):
+        pos_noise_x = pos_noise_scale * (np.random.rand() * 2 - 1)
+        pos_noise_y = pos_noise_scale * (np.random.rand() * 2 - 1)
+        cut_pos = [0.4 + pos_noise_x, -0.1 + pos_noise_y, cut_h]
+        cut_rot = [0.0, -0.05, np.pi / 4]
+        robot.cut(cut_pos, cut_rot, precut_dh)
 
 
 def random_grip(n_grips, pos_noise_scale=0.02, grip_width_noise=0.02):
@@ -103,30 +136,31 @@ def random_grip(n_grips, pos_noise_scale=0.02, grip_width_noise=0.02):
         robot.grip((grip_pos_x, grip_pos_y, rot_noise), grip_h, pregrip_dh, grip_width)
 
 
-def random_roll(pos_noise_scale=0.01, roll_h_noise_scale=0.01, roll_dist_noise_scale=0.04):
-    pos_noise_x = pos_noise_scale * (np.random.rand() * 2 - 1)
-    pos_noise_y = pos_noise_scale * (np.random.rand() * 2 - 1)
-    pos_noise_z = roll_h_noise_scale * (np.random.rand() * 2 - 1)
-    start_pos = [0.4 + pos_noise_x, -0.1 + pos_noise_y, 0.205 + pos_noise_z]
-
-    rot_noise = np.random.uniform(-np.pi, np.pi)
-    if rot_noise > np.pi / 2:
-        rot_noise -= np.pi
-    elif rot_noise < -np.pi / 2:
-        rot_noise += np.pi
-
-    roll_rot = [0.0, 0.0, rot_noise]
-    roll_dist = 0.03 + roll_dist_noise_scale * np.random.rand()
-    roll_delta = axangle2mat([0, 0, 1], roll_rot[2] + np.pi / 4) @ np.array([roll_dist, 0, 0]).T
-    # if np.dot(np.array([pos_noise_x, pos_noise_y, pos_noise_z]) * roll_delta) > 0:
-    if np.random.randn() > 0.5:
-        roll_delta = -roll_delta
-    
-    end_pos = start_pos + roll_delta
+def random_roll(n_rolls, pos_noise_scale=0.01, roll_h_noise_scale=0.01, roll_dist_noise_scale=0.04):
     preroll_dh = 0.07
+    for i in range(n_rolls):
+        pos_noise_x = pos_noise_scale * (np.random.rand() * 2 - 1)
+        pos_noise_y = pos_noise_scale * (np.random.rand() * 2 - 1)
+        pos_noise_z = roll_h_noise_scale * (np.random.rand() * 2 - 1)
+        start_pos = [0.4 + pos_noise_x, -0.1 + pos_noise_y, 0.205 + pos_noise_z]
 
-    print(f'Roll: \n\tstart_pos: {start_pos}\n\troll_rot: {rot_noise}\n\troll_dist:{roll_dist}\n\t preroll_dh: {preroll_dh}')
-    robot.roll(start_pos, roll_rot, end_pos, preroll_dh)
+        rot_noise = np.random.uniform(-np.pi, np.pi)
+        if rot_noise > np.pi / 2:
+            rot_noise -= np.pi
+        elif rot_noise < -np.pi / 2:
+            rot_noise += np.pi
+
+        roll_rot = [0.0, 0.0, rot_noise]
+        roll_dist = 0.03 + roll_dist_noise_scale * np.random.rand()
+        roll_delta = axangle2mat([0, 0, 1], roll_rot[2] + np.pi / 4) @ np.array([roll_dist, 0, 0]).T
+        # if np.dot(np.array([pos_noise_x, pos_noise_y, pos_noise_z]) * roll_delta) > 0:
+        if np.random.randn() > 0.5:
+            roll_delta = -roll_delta
+        
+        end_pos = start_pos + roll_delta
+
+        print(f'Roll: \n\tstart_pos: {start_pos}\n\troll_rot: {rot_noise}\n\troll_dist:{roll_dist}\n\t preroll_dh: {preroll_dh}')
+        robot.roll(start_pos, roll_rot, end_pos, preroll_dh)
 
 
 def random_press(n_presses, pos_noise_scale=0.02, press_h_noise_scale=0.015):
