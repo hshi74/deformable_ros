@@ -1,8 +1,10 @@
 import numpy as np
+import random
 import readchar
 import rospy
 import sys
 
+from std_msgs.msg import UInt8
 from transforms3d.axangles import axangle2mat
 from transforms3d.quaternions import *
 
@@ -10,63 +12,107 @@ import manipulate
 
 robot = manipulate.ManipulatorSystem()
 
-task_tool_mapping = {
-    'cutting': 'planar',
-    'gripping_asym': 'gripper_asym', 
-    'gripping_sym_rod': 'gripper_sym_rod', 
-    'gripping_sym_plane': 'gripper_sym_plane', 
-    'rolling': 'roller', 
-    'pressing': 'stamp',
-}
-
-# 0 -> uninitialized / pause; 1 -> start; 2 -> stop
-signal = 0
-
-# Initialize interfaces
 def main():
-    # global signal
+    if len(sys.argv) < 2:
+        print("Please enter the tool name!")
+        return
 
-    # if len(sys.argv) < 2:
-    #     print("Please enter the task name!")
-    #     return
+    tool_name = sys.argv[1]
 
-    # task_name = sys.argv[1]
-    # tool = task_tool_mapping[task_name]
     rospy.init_node('random_explore', anonymous=True)
 
-    # rate = rospy.Rate(100)
-    # while not rospy.is_shutdown():
-    #     print(f"start (s), run (r), end (e), or stop (c)?")
-    #     key = readchar.readkey()
-    #     print(key)
-    #     if key == 's':
-    #         # take away the tool
-    #         if robot.tool_status[tool] == 'ready':
-    #             print(f"========== taking away {tool} ==========")
-    #             robot.take_away_tool(tool)
-    #     elif key == 'r':
-    #         if task_name == 'cutting':
-    #             random_cut()
-    #         elif 'gripping' in task_name:
-    #             random_grip(5)
-    #         elif task_name == 'rolling':
-    #             random_roll()
-    #         elif task_name == 'pressing':
-    #             random_press(3)
-    #         else:
-    #             raise NotImplementedError
-    #     elif key == 'e':
-    #         if robot.tool_status[tool] == 'using':
-    #             print(f"========== putting back {tool} ==========")
-    #             robot.put_back_tool(tool)
-    #     elif key == 'c':
-    #         break
-    #     else:
-    #         print('Unrecoganized command!')
+    collect_cls_data(tool_name)
+    # collect_dy_data(tool_name)
 
-    #     rate.sleep()
 
-    import random
+def collect_cls_data(tool_name):
+    cls_signal_pub = rospy.Publisher('/cls_signal', UInt8, queue_size=10)
+
+    rate = rospy.Rate(100)
+    while not rospy.is_shutdown():
+        print(f"start (s), run (r), end (e), or stop (c)?")
+        key = readchar.readkey()
+        print(key)
+        if 's' in key:
+            for key, value in robot.tool_status.items():
+                if value['status'] == 'using':
+                    print(f"========== putting back {key} ==========")
+                    robot.put_back_tool(key)
+                    break
+
+            print(f"========== taking away {tool_name} ==========")
+            if robot.tool_status[tool_name]['status'] == 'ready':
+                robot.take_away_tool(tool_name)
+        elif 'r' in key:
+            cls_signal_pub.publish(UInt8(1))
+            if 'gripper' in tool_name:
+                random_grip(1, pregrip_dh=0.2)
+            elif 'roller' in tool_name:
+                random_roll(1, preroll_dh=0.2)
+            elif 'stamp' in tool_name:
+                random_press(1, prepress_dh=0.2)
+            elif 'cutter_planar' in tool_name:
+                random_cut(1, cut_h=0.215, precut_dh=0.2)
+            elif 'cutter_circular' in tool_name:
+                random_cut(1, cut_h=0.175, precut_dh=0.2)
+            else:
+                raise NotImplementedError
+            
+            cls_signal_pub.publish(UInt8(2))
+        elif 'e' in key:
+            if robot.tool_status[tool_name]['status'] == 'using':
+                print(f"========== putting back {tool_name} ==========")
+                robot.put_back_tool(tool_name)
+        elif 'c' in key:
+            break
+        else:
+            print('Unrecoganized command!')
+
+        rate.sleep()
+
+
+def collect_dy_data(tool_name):
+    rate = rospy.Rate(100)
+    while not rospy.is_shutdown():
+        print(f"start (s), run (r), end (e), or stop (c)?")
+        key = readchar.readkey()
+        print(key)
+        if key == 's':
+            # take away the tool
+            if robot.tool_status[tool_name] == 'ready':
+                print(f"========== taking away {tool_name} ==========")
+                robot.take_away_tool(tool_name)
+        elif key == 'r':
+            if 'spatula' in tool_name:
+                robot.pick_and_place((0.4, -0.1, -np.pi / 4), 0.18, 0.1, 
+                    (0.41, -0.29, -np.pi / 4), 0.22, 0.05, 0.02)
+            if 'gripper' in tool_name:
+                random_grip(5)
+            elif 'roller' in tool_name:
+                random_roll(2)
+            elif 'stamp' in tool_name:
+                random_press(2)
+            elif 'cutter_planar' in tool_name:
+                random_cut(2, cut_h=0.215)
+            elif 'cutter_circular' in tool_name:
+                random_cut(2, cut_h=0.175)
+            elif 'hook' in tool_name:
+                robot.hook_dumpling_clip([0.41, -0.2, 0.2])
+            else:
+                raise NotImplementedError
+        elif key == 'e':
+            if robot.tool_status[tool_name] == 'using':
+                print(f"========== putting back {tool_name} ==========")
+                robot.put_back_tool(tool_name)
+        elif key == 'c':
+            break
+        else:
+            print('Unrecoganized command!')
+
+        rate.sleep()
+
+
+def debug():
     tool_list = ['gripper_asym', 'gripper_sym_plane', 'gripper_sym_rod', 'gripper_sym_spatula', 
     'roller_large', 'stamp_circle_large', 'stamp_circle_small',
     'roller_small', 'stamp_square_large', 'stamp_square_small',
@@ -99,8 +145,7 @@ def main():
         robot.put_back_tool(tool)
 
 
-def random_cut(n_cuts, cut_h, pos_noise_scale=0.03):
-    precut_dh = 0.07
+def random_cut(n_cuts, cut_h, pos_noise_scale=0.03, precut_dh=0.07):
     for i in range(n_cuts):
         pos_noise_x = pos_noise_scale * (np.random.rand() * 2 - 1)
         pos_noise_y = pos_noise_scale * (np.random.rand() * 2 - 1)
@@ -109,12 +154,11 @@ def random_cut(n_cuts, cut_h, pos_noise_scale=0.03):
         robot.cut(cut_pos, cut_rot, precut_dh)
 
 
-def random_grip(n_grips, pos_noise_scale=0.02, grip_width_noise=0.02):
+def random_grip(n_grips, pos_noise_scale=0.02, grip_width_noise=0.02, pregrip_dh=0.1):
     # Perform gripping
     grip_pos = np.array([0.4, -0.1])
     
     grip_h = 0.18
-    pregrip_dh = 0.1
     for i in range(n_grips):
         # sample grip
         pos_noise = pos_noise_scale * (np.random.rand() * 2 - 1)
@@ -136,8 +180,7 @@ def random_grip(n_grips, pos_noise_scale=0.02, grip_width_noise=0.02):
         robot.grip((grip_pos_x, grip_pos_y, rot_noise), grip_h, pregrip_dh, grip_width)
 
 
-def random_roll(n_rolls, pos_noise_scale=0.01, roll_h_noise_scale=0.01, roll_dist_noise_scale=0.04):
-    preroll_dh = 0.07
+def random_roll(n_rolls, pos_noise_scale=0.01, roll_h_noise_scale=0.01, roll_dist_noise_scale=0.04, preroll_dh=0.07):
     for i in range(n_rolls):
         pos_noise_x = pos_noise_scale * (np.random.rand() * 2 - 1)
         pos_noise_y = pos_noise_scale * (np.random.rand() * 2 - 1)
@@ -163,8 +206,7 @@ def random_roll(n_rolls, pos_noise_scale=0.01, roll_h_noise_scale=0.01, roll_dis
         robot.roll(start_pos, roll_rot, end_pos, preroll_dh)
 
 
-def random_press(n_presses, pos_noise_scale=0.02, press_h_noise_scale=0.015):
-    prepress_dh = 0.1
+def random_press(n_presses, pos_noise_scale=0.02, press_h_noise_scale=0.015, prepress_dh=0.1):
     for i in range(n_presses):
         pos_noise_x = pos_noise_scale * (np.random.rand() * 2 - 1)
         pos_noise_y = pos_noise_scale * (np.random.rand() * 2 - 1)
