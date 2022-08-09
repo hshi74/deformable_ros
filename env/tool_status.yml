@@ -13,11 +13,20 @@ gripper_sym_plane:
 gripper_sym_rod:
   loc: l0-2
   status: ready
-gripper_sym_spatula:
-  loc: l1
-  status: ready
 hook:
   loc: f2-high
+  status: ready
+presser_circle_large:
+  loc: f0-mid
+  status: ready
+presser_circle_small:
+  loc: f0-high
+  status: ready
+presser_square_large:
+  loc: f1-mid
+  status: ready
+presser_square_small:
+  loc: f1-high
   status: ready
 roller_large:
   loc: f0-low
@@ -25,15 +34,9 @@ roller_large:
 roller_small:
   loc: f1-low
   status: ready
-stamp_circle_large:
-  loc: f0-mid
+spatula_large:
+  loc: l1-1
   status: ready
-stamp_circle_small:
-  loc: f0-high
-  status: ready
-stamp_square_large:
-  loc: f1-mid
-  status: ready
-stamp_square_small:
-  loc: f1-high
+spatula_small:
+  loc: l1-0
   status: ready

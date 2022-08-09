@@ -76,13 +76,14 @@ class ManipulatorSystem:
                 'gripper_asym': {'loc': 'l0-0', 'status': 'ready'},
                 'gripper_sym_plane': {'loc': 'l0-1', 'status': 'ready'},
                 'gripper_sym_rod': {'loc': 'l0-2', 'status': 'ready'},
-                'gripper_sym_spatula': {'loc': 'l1', 'status': 'ready'},
+                'spatula_small': {'loc': 'l1-0', 'status': 'ready'},
+                'spatula_large': {'loc': 'l1-1', 'status': 'ready'},
                 'roller_large': {'loc': 'f0-low', 'status': 'ready'},
-                'stamp_circle_large': {'loc': 'f0-mid', 'status': 'ready'},
-                'stamp_circle_small': {'loc': 'f0-high', 'status': 'ready'},
+                'presser_circle_large': {'loc': 'f0-mid', 'status': 'ready'},
+                'presser_circle_small': {'loc': 'f0-high', 'status': 'ready'},
                 'roller_small': {'loc': 'f1-low', 'status': 'ready'},
-                'stamp_square_large': {'loc': 'f1-mid', 'status': 'ready'},
-                'stamp_square_small': {'loc': 'f1-high', 'status': 'ready'},
+                'presser_square_large': {'loc': 'f1-mid', 'status': 'ready'},
+                'presser_square_small': {'loc': 'f1-high', 'status': 'ready'},
                 'cutter_planar': {'loc': 'f2-low', 'status': 'ready'},
                 'cutter_circular': {'loc': 'f2-mid', 'status': 'ready'},
                 'hook': {'loc': 'f2-high', 'status': 'ready'},
@@ -95,15 +96,16 @@ class ManipulatorSystem:
             'l0-0': [0.345, 0.295, -np.pi / 4, 0.32],
             'l0-1': [0.415, 0.29, -np.pi / 4, 0.32],
             'l0-2': [0.465, 0.29, -np.pi / 4, 0.32],
-            'l1': [0.625, 0.2675, np.pi / 4, 0.325],
+            'l1-0': [0.63, 0.2075, np.pi / 4, 0.325],
+            'l1-1': [0.63, 0.2825, np.pi / 4, 0.325],
             'f0-low': [0.5975, -0.255, -np.pi / 4, 0.225],
             'f0-mid': [0.66, -0.255, -np.pi / 4, 0.33],
             'f0-high': [0.725, -0.26, -np.pi / 4, 0.44],
-            'f1-low': [0.5975, -0.08, -np.pi / 4, 0.225],
+            'f1-low': [0.6025, -0.08, -np.pi / 4, 0.225],
             'f1-mid': [0.665, -0.085, -np.pi / 4, 0.33],
             'f1-high': [0.7275, -0.085, -np.pi / 4, 0.44],
             'f2-low': [0.6025, 0.085, -np.pi / 4, 0.225],
-            'f2-mid': [0.665, 0.085, -np.pi / 4, 0.33],
+            'f2-mid': [0.665, 0.085, -np.pi / 4, 0.335],
             'f2-high': [0.7275, 0.08, -np.pi / 4, 0.44],
         }
 
@@ -278,7 +280,7 @@ class ManipulatorSystem:
         else:
             self.take_away(grip_params=self.loc_param_dict[loc][:3], 
                 grip_h=self.loc_param_dict[loc][3], pregrip_dh=0.015, 
-                grip_width=0.0175, lift_dh=0.005, loc=loc, debug=debug)
+                grip_width=0.015, lift_dh=0.005, loc=loc, debug=debug)
 
         if not debug:
             self.tool_status[tool]['status'] = 'using'
@@ -353,8 +355,12 @@ class ManipulatorSystem:
 
         # grip
         if not debug:
-            self.close_gripper(grip_width, blocking=False)
-            time.sleep(0.5)
+            if 'l1-1' in loc:
+                self.close_gripper(0.03, blocking=False)
+                time.sleep(1.5)
+            else:
+                self.close_gripper(grip_width, blocking=False)
+                time.sleep(0.5)
 
         # Lift the tool
         print("=> lift the tool:")
@@ -390,7 +396,7 @@ class ManipulatorSystem:
         # self.move_to(*prep_pose, time_to_go=1.0)
 
         if 'l0' in loc or 'l1' in loc:
-            close_width = 0.03 if 'l0' in loc else 0.04
+            close_width = 0.04 if 'l1' in loc else 0.03
             self.close_gripper(close_width, blocking=False)
 
         if 'l0' in loc or 'l1' in loc:
@@ -435,7 +441,7 @@ class ManipulatorSystem:
         self.move_to(*self.rest_pose, time_to_go=2.0)
 
 
-    def cut(self, cut_pos, cut_rot, precut_dh, mode='explore'):
+    def cut(self, cut_pos, cut_rot, precut_dh, push_y, mode='explore'):
         self.set_policy(self.gain_dict['high']['Kx'], self.gain_dict['high']['Kxd'])
 
         # Move to precut
@@ -451,13 +457,14 @@ class ManipulatorSystem:
         # Cut
         print("=> cut:")
         cut_pose = self.pos_rot_to_pose(cut_pos, cut_rot)
-        self.move_to(*cut_pose)
+        self.move_to(*cut_pose, time_to_go=3.0)
 
-        # Separate
-        print("=> separate:")
-        separate_pos = [cut_pos[0], cut_pos[1] + 0.03, cut_pos[2]]
-        separate_pose = self.pos_rot_to_pose(separate_pos, cut_rot)
-        self.move_to(*separate_pose)
+        if push_y > 0:
+            # Separate
+            print("=> separate:")
+            separate_pos = [cut_pos[0], cut_pos[1] + push_y, cut_pos[2]]
+            separate_pose = self.pos_rot_to_pose(separate_pos, cut_rot)
+            self.move_to(*separate_pose)
 
         if mode == 'explore':
             self.signal_pub.publish(UInt8(0))
@@ -585,15 +592,16 @@ class ManipulatorSystem:
         # Lower
         print("=> pick:")
         pick_pose = self.pos_rz_to_pose(pick_params, pick_h)
-        self.move_to(*pick_pose, time_to_go=1.0)
+        self.move_to(*pick_pose, time_to_go=2.0)
 
         # grip
-        self.close_gripper(grip_width, blocking=False)
+        self.close_gripper(grip_width, blocking=False, grip_params=(0.02, 20))
+        time.sleep(3.0)
 
         print("=> back to prepick:")
         self.move_to(*prepick_pose)
 
-        print("=> prelace:")
+        print("=> preplace:")
         preplace_pose = self.pos_rz_to_pose(place_params, place_h + preplace_dh)
         self.move_to(*preplace_pose)
 
@@ -603,8 +611,11 @@ class ManipulatorSystem:
 
         self.open_gripper()
         
-        print("=> back to prelace:")
+        print("=> back to preplace:")
         self.move_to(*preplace_pose)
+
+        print("=> back to prepick:")
+        self.move_to(*prepick_pose)
 
 
     def hook_dumpling_clip(self, hook_pos):
@@ -652,7 +663,7 @@ class ManipulatorSystem:
 
         print("=> push down:")
         hook_down_pose = self.pos_rot_to_pose(
-            (hook_pos[0], hook_pos[1] - 0.15, hook_pos[2] + 0.02), hook_rot)
+            (hook_pos[0], hook_pos[1] - 0.15, hook_pos[2] + 0.025), hook_rot)
         self.move_to(*hook_down_pose)
 
         print("=> move up a little bit:")
@@ -682,8 +693,8 @@ class ManipulatorSystem:
             (hook_pos[0] + 0.02, hook_pos[1] - 0.07, hook_pos[2] + 0.07), new_hook_rot)
         self.move_to(*prehook_pose)
 
-        # print("=> back to prehook:")
-        # self.move_to(*prehook_pose)
+        print("=> back to rest pose:")
+        self.move_to(self.rest_pos, self.rest_quat)
 
 
 def main():
@@ -707,13 +718,14 @@ def main():
     #     rate.sleep()
 
     import random
-    tool_list = ['gripper_asym', 'gripper_sym_plane', 'gripper_sym_rod', 'gripper_sym_spatula', 
-    'roller_large', 'stamp_circle_large', 'stamp_circle_small',
-    'roller_small', 'stamp_square_large', 'stamp_square_small',
+    tool_list = ['gripper_asym', 'gripper_sym_plane', 'gripper_sym_rod', 
+    'spatula_small', 'spatula_large', 
+    'roller_large', 'presser_circle_large', 'presser_circle_small',
+    'roller_small', 'presser_square_large', 'presser_square_small',
     'cutter_planar', 'cutter_circular', 'hook']
     random.shuffle(tool_list)
 
-    # tool_list = ['stamp_circle_large', 'stamp_square_large', 'cutter_circular']
+    tool_list = ['spatula_small']
 
     for tool in tool_list:
         robot.take_away_tool(tool, debug=False)

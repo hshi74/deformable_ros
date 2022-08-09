@@ -19,12 +19,21 @@ from timeit import default_timer as timer
 from transforms3d.quaternions import *
 
 
-# tool_list = ['gripper_asym', 'gripper_sym_plane', 'gripper_sym_rod', 'gripper_sym_spatula', 
-#     'roller_large', 'stamp_circle_large', 'stamp_circle_small',
-#     'roller_small', 'stamp_square_large', 'stamp_square_small',
-#     'cutter_planar', 'cutter_circular', 'hook']
+tool_list = ['gripper_asym', 'gripper_sym_plane', 'gripper_sym_rod', 
+    'spatula_small', 'spatula_large',
+    'roller_large', 'presser_circle_large', 'presser_circle_small',
+    'roller_small', 'presser_square_large', 'presser_square_small',
+    'cutter_planar', 'cutter_circular', 'hook']
 
-tool_name = 'gripper_sym'
+if len(sys.argv) < 2:
+    print("Please enter the tool name!")
+    exit()
+
+tool_name = sys.argv[1]
+
+# if not tool_name in tool_list:
+#     print("Wrong tool name!")
+#     exit()
 
 fixed_frame = 'panda_link0'
 num_cams = 4
@@ -38,7 +47,8 @@ pcd_path = os.path.join(cd, '..', 'raw_data', pcd_suffix)
 os.system('mkdir -p ' + f"{image_path}")
 os.system('mkdir -p ' + f"{pcd_path}")
 
-robot = ManipulatorSystem()
+robot = None
+# robot = ManipulatorSystem()
 
 data_list = sorted(glob.glob(os.path.join(pcd_path, '*')))
 if len(data_list) == 0:
@@ -113,11 +123,12 @@ def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
         bag.write('/cam3/depth/color/points', cam3_msg)
         bag.write('/cam4/depth/color/points', cam4_msg)
 
-        ee_pose = robot.get_ee_pose()
-        bag.write('/ee_pose', ee_pose)
+        if robot is not None:
+            ee_pose = robot.get_ee_pose()
+            bag.write('/ee_pose', ee_pose)
 
-        gripper_width = robot.gripper.get_state().width
-        bag.write('/gripper_width', Float32(gripper_width))
+            gripper_width = robot.gripper.get_state().width
+            bag.write('/gripper_width', Float32(gripper_width))
 
         bag.close()
 

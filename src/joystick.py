@@ -44,7 +44,7 @@ def joy_callback(msg):
             elif msg.axes[2] == 1.0 and msg.axes[5] == -1.0:
                 tool = 'roller'
             elif msg.axes[2] == -1.0 and msg.axes[5] == -1.0:
-                tool = 'stamp'
+                tool = 'presser'
             else:
                 raise NotImplementedError
 

@@ -17,15 +17,6 @@ import manipulate
 
 robot = manipulate.ManipulatorSystem()
 
-task_tool_mapping = {
-    'gripping_asym': 'gripper_asym', 
-    'gripping_sym_rod': 'gripper_sym_rod',
-    'gripping_sym_plane': 'gripper_sym_plane', 
-    'rolling': 'roller', 
-    'pressing_large': 'stamp_large',
-    'pressing_small': 'stamp_small',
-}
-
 param_seq = None
 def param_seq_callback(msg):
     global param_seq
@@ -60,20 +51,16 @@ def main():
             with open(result_dir, 'r') as f:
                 param_seq_dict = yaml.load(f, Loader=yaml.FullLoader)
             
-            for task_name, param_seq in param_seq_dict.items():
-                for task in task_tool_mapping.keys():
-                    if task in task_name:
-                        task_name = task
-                        break
-                run(task_name, np.array(param_seq))
+            for tool_name, param_seq in param_seq_dict.items():
+                run(tool_name, np.array(param_seq))
         else:
             print("Result directory doesn't exist!")
     else:
         raise NotImplementedError
 
 
-def run(task_name, param_seq):
-    if 'gripping' in task_name:
+def run(tool_name, param_seq):
+    if 'gripper' in tool_name:
         param_seq = param_seq.reshape(-1, 3)
         for i in range(len(param_seq)):
             grip_h = 0.18
@@ -87,7 +74,7 @@ def run(task_name, param_seq):
             else:
                 grip_mode = 'na'
             robot.grip((grip_pos_x, grip_pos_y, rot_noise), grip_h, pregrip_dh, grip_width, mode=grip_mode)
-    elif 'pressing' in task_name:
+    elif 'presser' in tool_name:
         param_seq = param_seq.reshape(-1, 4)
         for i in range(len(param_seq)):
             prepress_dh = 0.1
@@ -98,7 +85,7 @@ def run(task_name, param_seq):
             else:
                 press_mode = 'na'
             robot.press((press_pos_x, press_pos_y, press_pos_z), rot_noise, prepress_dh, mode=press_mode)
-    elif 'rolling' in task_name:
+    elif 'roller' in tool_name:
         param_seq = param_seq.reshape(-1, 5)
         for i in range(len(param_seq)):
             preroll_dh = 0.07
@@ -130,24 +117,23 @@ def react():
         command_list = command_str.split('.')
         command = command_list[0]
         if len(command_list) > 1: 
-            task_name = command_list[1]
+            tool_name = command_list[1]
 
         if command == 'run':
             import pdb; pdb.set_trace()
-            selected_tool = task_tool_mapping[task_name]
-            if robot.tool_status[selected_tool] == 'ready':
+            if robot.tool_status[tool_name] == 'ready':
                 for tool, status in robot.tool_status.items():
                     if status == 'using':
                         print(f"========== Putting back {tool} ==========")
                         robot.put_back_tool(tool)
                         break
         
-                print(f"========== Taking away {selected_tool} ==========")
-                robot.take_away_tool(selected_tool)
+                print(f"========== Taking away {tool_name} ==========")
+                robot.take_away_tool(tool_name)
 
             if param_seq is not None:
                 command_fb_pub.publish(UInt8(1))
-                run(task_name, param_seq)
+                run(tool_name, param_seq)
                 param_seq = None
 
         elif command == 'end':

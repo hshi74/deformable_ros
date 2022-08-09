@@ -46,15 +46,24 @@ def collect_cls_data(tool_name):
         elif 'r' in key:
             cls_signal_pub.publish(UInt8(1))
             if 'gripper' in tool_name:
-                random_grip(1, pregrip_dh=0.2)
+                if 'plane' in tool_name:
+                    random_grip(1, grip_width_min=0.01, grip_width_max=0.02, pregrip_dh=0.2)
+                else:
+                    random_grip(1, grip_width_min=0.005, grip_width_max=0.02, pregrip_dh=0.2)
             elif 'roller' in tool_name:
                 random_roll(1, preroll_dh=0.2)
-            elif 'stamp' in tool_name:
+            elif 'presser' in tool_name:
                 random_press(1, prepress_dh=0.2)
             elif 'cutter_planar' in tool_name:
-                random_cut(1, cut_h=0.215, precut_dh=0.2)
+                random_cut(1, cut_h=0.215, precut_dh=0.2, push_y=0.15)
             elif 'cutter_circular' in tool_name:
-                random_cut(1, cut_h=0.175, precut_dh=0.2)
+                random_cut(1, cut_h=0.17, pos_noise_scale=0, precut_dh=0.2, push_y=0)
+            elif 'spatula' in tool_name:
+                grip_width = 0.01 if 'large' in tool_name else 0.02
+                robot.pick_and_place((0.4, -0.1, -np.pi / 4), 0.18, 0.2, 
+                    (0.41, -0.29, -np.pi / 4), 0.22, 0.05, grip_width)
+            elif 'hook' in tool_name:
+                robot.hook_dumpling_clip([0.41, -0.2, 0.2])
             else:
                 raise NotImplementedError
             
@@ -83,19 +92,20 @@ def collect_dy_data(tool_name):
                 print(f"========== taking away {tool_name} ==========")
                 robot.take_away_tool(tool_name)
         elif key == 'r':
-            if 'spatula' in tool_name:
-                robot.pick_and_place((0.4, -0.1, -np.pi / 4), 0.18, 0.1, 
-                    (0.41, -0.29, -np.pi / 4), 0.22, 0.05, 0.02)
             if 'gripper' in tool_name:
                 random_grip(5)
             elif 'roller' in tool_name:
                 random_roll(2)
-            elif 'stamp' in tool_name:
+            elif 'presser' in tool_name:
                 random_press(2)
             elif 'cutter_planar' in tool_name:
                 random_cut(2, cut_h=0.215)
             elif 'cutter_circular' in tool_name:
                 random_cut(2, cut_h=0.175)
+            elif 'spatula' in tool_name:
+                grip_width = 0.01 if 'large' in tool_name else 0.02
+                robot.pick_and_place((0.4, -0.1, -np.pi / 4), 0.18, 0.1, 
+                    (0.41, -0.29, -np.pi / 4), 0.22, 0.05, grip_width)
             elif 'hook' in tool_name:
                 robot.hook_dumpling_clip([0.41, -0.2, 0.2])
             else:
@@ -112,49 +122,17 @@ def collect_dy_data(tool_name):
         rate.sleep()
 
 
-def debug():
-    tool_list = ['gripper_asym', 'gripper_sym_plane', 'gripper_sym_rod', 'gripper_sym_spatula', 
-    'roller_large', 'stamp_circle_large', 'stamp_circle_small',
-    'roller_small', 'stamp_square_large', 'stamp_square_small',
-    'cutter_planar', 'cutter_circular', 'hook']
-    random.shuffle(tool_list)
-
-    tool_list = ['gripper_sym_spatula']
-
-    for tool in tool_list:
-        robot.take_away_tool(tool, debug=False)
-        
-        if 'spatula' in tool:
-            robot.pick_and_place((0.4, -0.1, -np.pi / 4), 0.18, 0.1, 
-                (0.41, -0.29, -np.pi / 4), 0.22, 0.05, 0.02)
-        elif 'gripper' in tool:
-            random_grip(2)
-        elif 'roller' in tool:
-            random_roll(2)
-        elif 'stamp' in tool:
-            random_press(2)
-        elif 'cutter_planar' in tool:
-            random_cut(2, cut_h=0.215)
-        elif 'cutter_circular' in tool:
-            random_cut(2, cut_h=0.175)
-        elif 'hook' in tool:
-            robot.hook_dumpling_clip([0.41, -0.2, 0.2])
-        else:
-            raise NotImplementedError
-        
-        robot.put_back_tool(tool)
-
-
-def random_cut(n_cuts, cut_h, pos_noise_scale=0.03, precut_dh=0.07):
+def random_cut(n_cuts, cut_h, pos_noise_scale=0.03, precut_dh=0.07, push_y=0.03):
     for i in range(n_cuts):
         pos_noise_x = pos_noise_scale * (np.random.rand() * 2 - 1)
         pos_noise_y = pos_noise_scale * (np.random.rand() * 2 - 1)
+        pos_noise_x = 0
         cut_pos = [0.4 + pos_noise_x, -0.1 + pos_noise_y, cut_h]
         cut_rot = [0.0, -0.05, np.pi / 4]
-        robot.cut(cut_pos, cut_rot, precut_dh)
+        robot.cut(cut_pos, cut_rot, precut_dh, push_y=push_y)
 
 
-def random_grip(n_grips, pos_noise_scale=0.02, grip_width_noise=0.02, pregrip_dh=0.1):
+def random_grip(n_grips, pos_noise_scale=0.02, grip_width_max=0.02, grip_width_min=0.005, pregrip_dh=0.1):
     # Perform gripping
     grip_pos = np.array([0.4, -0.1])
     
@@ -169,7 +147,7 @@ def random_grip(n_grips, pos_noise_scale=0.02, grip_width_noise=0.02, pregrip_dh
         elif rot_noise < -np.pi / 2:
             rot_noise += np.pi
 
-        grip_width = np.random.rand() * (grip_width_noise - 0.005) + 0.005
+        grip_width = np.random.rand() * (grip_width_max - grip_width_min) + grip_width_min
 
         grip_pos_x = grip_pos[0] - pos_noise * np.sin(rot_noise - np.pi / 2)
         grip_pos_y = grip_pos[1] + pos_noise * np.cos(rot_noise - np.pi / 2)
@@ -211,7 +189,7 @@ def random_press(n_presses, pos_noise_scale=0.02, press_h_noise_scale=0.015, pre
         pos_noise_x = pos_noise_scale * (np.random.rand() * 2 - 1)
         pos_noise_y = pos_noise_scale * (np.random.rand() * 2 - 1)
         pos_noise_z = press_h_noise_scale * (np.random.rand() * 2 - 1)
-        press_pos = [0.4 + pos_noise_x, -0.1 + pos_noise_y, 0.175 + pos_noise_z]
+        press_pos = [0.4 + pos_noise_x, -0.1 + pos_noise_y, 0.19 + pos_noise_z]
 
         rot_noise = np.random.uniform(-np.pi, np.pi)
         if rot_noise > np.pi / 2:
