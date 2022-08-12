@@ -21,8 +21,8 @@ from transforms3d.quaternions import *
 
 tool_list = ['gripper_asym', 'gripper_sym_plane', 'gripper_sym_rod', 
     'spatula_small', 'spatula_large',
-    'roller_large', 'presser_circle_large', 'presser_circle_small',
-    'roller_small', 'presser_square_large', 'presser_square_small',
+    'roller_large', 'press_circle', 'punch_circle',
+    'roller_small', 'press_square', 'punch_square',
     'cutter_planar', 'cutter_circular', 'hook']
 
 if len(sys.argv) < 2:

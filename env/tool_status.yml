@@ -16,16 +16,16 @@ gripper_sym_rod:
 hook:
   loc: f2-high
   status: ready
-presser_circle_large:
+press_circle:
   loc: f0-mid
   status: ready
-presser_circle_small:
-  loc: f0-high
-  status: ready
-presser_square_large:
+press_square:
   loc: f1-mid
   status: ready
-presser_square_small:
+punch_circle:
+  loc: f0-high
+  status: ready
+punch_square:
   loc: f1-high
   status: ready
 roller_large:
