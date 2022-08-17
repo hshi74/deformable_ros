@@ -1,5 +1,6 @@
 import glob
 import os
+import random_explore
 import readchar
 import rosbag
 import rospy
@@ -9,8 +10,6 @@ import yaml
 import cv2
 
 from cv_bridge import CvBridge
-from datetime import datetime
-from manipulate import ManipulatorSystem
 from message_filters import ApproximateTimeSynchronizer, Subscriber
 from geometry_msgs.msg import TransformStamped
 from sensor_msgs.msg import Image, PointCloud2
@@ -19,55 +18,55 @@ from timeit import default_timer as timer
 from transforms3d.quaternions import *
 
 
-tool_list = ['gripper_asym', 'gripper_sym_plane', 'gripper_sym_rod', 
-    'spatula_small', 'spatula_large',
-    'roller_large', 'press_circle', 'punch_circle',
-    'roller_small', 'press_square', 'punch_square',
-    'cutter_planar', 'cutter_circular', 'hook']
+robot = random_explore.robot
 
-if len(sys.argv) < 2:
-    print("Please enter the tool name!")
+tool_name = ''
+for key, value in robot.tool_status.items():
+    if value['status'] == 'using':
+        tool_name = key
+        print(f'{tool_name} is being used!')
+        break
+
+if len(tool_name) == 0:
+    print('No tool is being used!')
     exit()
 
-tool_name = sys.argv[1]
-
-# if not tool_name in tool_list:
-#     print("Wrong tool name!")
-#     exit()
+date = '08-15'
 
 fixed_frame = 'panda_link0'
 num_cams = 4
 
 cd = os.path.dirname(os.path.realpath(sys.argv[0]))
-image_suffix = os.path.join('tool_classifier_raw_image_08-02', tool_name)
-pcd_suffix = os.path.join('tool_classifier_raw_pcd_08-02', tool_name)
+image_suffix = os.path.join(f'tool_classifier_raw_image_{date}', tool_name)
+pcd_suffix = os.path.join(f'tool_classifier_raw_pcd_{date}', tool_name)
 image_path = os.path.join(cd, '..', 'raw_data', image_suffix)
 pcd_path = os.path.join(cd, '..', 'raw_data', pcd_suffix)
 
 os.system('mkdir -p ' + f"{image_path}")
 os.system('mkdir -p ' + f"{pcd_path}")
 
-robot = None
-# robot = ManipulatorSystem()
-
-data_list = sorted(glob.glob(os.path.join(pcd_path, '*')))
+data_list = sorted(glob.glob(os.path.join(image_path, '*')))
 if len(data_list) == 0:
     trial = 0
 else:
     trial = int(os.path.basename(data_list[-1]).lstrip('0').split('_')[0]) + 1
 
-img_cls_signal = 0
-pcd_cls_signal = 0
-
 img_done = 0
 pcd_done = 0
 
-
-def cls_signal_callback(msg):
+img_cls_signal = 0
+pcd_cls_signal = 0
+def action_signal_callback(msg):
     global img_cls_signal
     global pcd_cls_signal
-    img_cls_signal = msg.data
-    pcd_cls_signal = msg.data
+
+    if msg.data == 0:
+        img_cls_signal = 1
+        pcd_cls_signal = 1
+
+    if msg.data == 3:
+        img_cls_signal = 2
+        pcd_cls_signal = 2
 
 
 def image_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
@@ -75,13 +74,6 @@ def image_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
     global img_done
 
     if img_cls_signal == 1 or img_cls_signal == 2:
-        # bag = rosbag.Bag(os.path.join(bag_path, f'{init_shape_list[init_shape_idx]}_{trial}.bag'), 'w')
-        # bag.write('/cam1/color/image_raw', cam1_msg)
-        # bag.write('/cam2/color/image_raw', cam2_msg)
-        # bag.write('/cam3/color/image_raw', cam3_msg)
-        # bag.write('/cam4/color/image_raw', cam4_msg)
-        # bag.close()
-
         image_msgs = [cam1_msg, cam2_msg, cam3_msg, cam4_msg]
         br = CvBridge()
         for i in range(num_cams):
@@ -123,13 +115,6 @@ def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
         bag.write('/cam3/depth/color/points', cam3_msg)
         bag.write('/cam4/depth/color/points', cam4_msg)
 
-        if robot is not None:
-            ee_pose = robot.get_ee_pose()
-            bag.write('/ee_pose', ee_pose)
-
-            gripper_width = robot.gripper.get_state().width
-            bag.write('/gripper_width', Float32(gripper_width))
-
         bag.close()
 
         print(f"Trial {trial}: recorded {'input' if pcd_cls_signal == 1 else 'output'} pcd")
@@ -146,8 +131,8 @@ def main():
     global pcd_done
     global trial
 
-    rospy.init_node('image_shooter', anonymous=True)
-    rospy.Subscriber("/cls_signal", UInt8, cls_signal_callback)
+    rospy.init_node('collect_cls_data', anonymous=True)
+    rospy.Subscriber("/action_signal", UInt8, action_signal_callback)
     
     tss = ApproximateTimeSynchronizer(
         (Subscriber("/cam1/color/image_raw", Image), 
@@ -195,20 +180,6 @@ def main():
 
     rate = rospy.Rate(100)
     while not rospy.is_shutdown():
-        # print(f"Trial {trial}: Input or output? ")
-        # key = readchar.readkey()
-        # print(key)
-        # if key == 'i' or key == 'o':
-        #     signal = 1
-        #     input = False
-        #     if key == 'i':
-        #         print("Input!")
-        #         input = True
-        #     else:
-        #         print("Output!")
-        # elif key == 'c':
-        #     break
-
         if img_done == 1 and pcd_done == 1:
             trial += 1
             img_done = 0

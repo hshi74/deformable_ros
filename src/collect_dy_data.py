@@ -1,6 +1,4 @@
-import execute_actions
 import glob
-import manipulate
 import numpy as np
 import os
 import random_explore
@@ -20,33 +18,46 @@ from timeit import default_timer as timer
 from transforms3d.quaternions import *
 
 
-def signal_callback(msg):
-    global signal
-    signal = msg.data
+robot = random_explore.robot
+
+tool_name = ''
+for key, value in robot.tool_status.items():
+    if value['status'] == 'using':
+        tool_name = key
+        print(f'{tool_name} is being used!')
+        break
+
+if len(tool_name) == 0:
+    print('No tool is being used!')
+    exit()
+
+date = '08-15'
+
+cd = os.path.dirname(os.path.realpath(sys.argv[0]))
+data_path = os.path.join(cd, '..', 'raw_data', f'{tool_name}_{date}')
+os.system('mkdir -p ' + f"{data_path}")
+data_list = sorted(glob.glob(os.path.join(data_path, '*')))
+if len(data_list) == 0:
+    trial = 0
+else:
+    trial = int(os.path.basename(data_list[-1]).lstrip('0')) + 1
 
 
-data_path = ''
-def path_callback(msg):
-    global data_path
-    global signal
-    if data_path != msg.data:
-        if '0' in os.path.basename(msg.data):
-            signal = 1
-        data_path = msg.data
-        print(f"MPC state data path: {data_path}")
+pcd_dy_signal = 0
+def action_signal_callback(msg):
+    global pcd_dy_signal
+    if msg.data == 1:
+        pcd_dy_signal = 1
+    if msg.data == 2:
+        pcd_dy_signal = 0
 
 
-# signal 0 -> uninitialized / pause; 1 -> start; 2 -> stop
-signal = 0
 time_start, time_last, time_now, time_delta = 0.0, 0.0, 0.0, 0.1
 n_actions = 0
 action_counted = False
 n_actions_max = 1
-tiral = 0
-mode = ''
-robot = None
 def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
-    global signal
+    global pcd_dy_signal
     global time_start
     global time_last
     global time_now
@@ -54,62 +65,27 @@ def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
     global action_counted
     global trial
 
-    if mode == 'explore':
-        if signal == 1:
-            action_counted = False
-            
-            if time_start == 0.0:
-                time_start = cam1_msg.header.stamp.to_sec()
+    if pcd_dy_signal == 1:
+        action_counted = False
+        
+        if time_start == 0.0:
+            time_start = cam1_msg.header.stamp.to_sec()
 
-            time_now = cam1_msg.header.stamp.to_sec() - time_start
-            time_diff_1 = cam2_msg.header.stamp.to_sec() - time_start - time_now
-            time_diff_2 = cam3_msg.header.stamp.to_sec() - time_start - time_now
-            time_diff_3 = cam4_msg.header.stamp.to_sec() - time_start - time_now
-            
-            if time_now == 0.0 or time_now - time_last > time_delta:
-                trial_path = os.path.join(data_path, str(trial).zfill(3))
-                os.system('mkdir -p ' + f"{trial_path}")
-                bag = rosbag.Bag(os.path.join(trial_path, f'{time_now:.3f}.bag'), 'w')
+        time_now = cam1_msg.header.stamp.to_sec() - time_start
+        time_diff_1 = cam2_msg.header.stamp.to_sec() - time_start - time_now
+        time_diff_2 = cam3_msg.header.stamp.to_sec() - time_start - time_now
+        time_diff_3 = cam4_msg.header.stamp.to_sec() - time_start - time_now
+        
+        if time_now == 0.0 or time_now - time_last > time_delta:
+            trial_path = os.path.join(data_path, str(trial).zfill(3))
+            os.system('mkdir -p ' + f"{trial_path}")
+            bag = rosbag.Bag(os.path.join(trial_path, f'{time_now:.3f}.bag'), 'w')
 
-                bag.write('/cam1/depth/color/points', cam1_msg)
-                bag.write('/cam2/depth/color/points', cam2_msg)
-                bag.write('/cam3/depth/color/points', cam3_msg)
-                bag.write('/cam4/depth/color/points', cam4_msg)
-
-                ee_pose = robot.get_ee_pose()
-                bag.write('/ee_pose', ee_pose)
-
-                gripper_width = robot.gripper.get_state().width
-                bag.write('/gripper_width', Float32(gripper_width))
-
-                bag.close()
-
-                print(f"Trial {trial}: recorded pcd at {round(time_now, 3)} " + \
-                    f"({round(time_diff_1, 3)}, {round(time_diff_2, 3)}, {round(time_diff_3, 3)})...")
-                
-                time_last = time_now
-
-        if signal == 0:
-            if time_start > 0 and not action_counted:
-                n_actions += 1
-                action_counted = True
-
-            if n_actions >= n_actions_max:
-                n_actions = 0
-                trial += 1
-                time_start = 0.0
-                time_last = 0.0
-                time_now = 0.0
-
-    elif mode == 'control':
-        if signal == 1:
-            bag = rosbag.Bag(data_path, 'w')
             bag.write('/cam1/depth/color/points', cam1_msg)
             bag.write('/cam2/depth/color/points', cam2_msg)
             bag.write('/cam3/depth/color/points', cam3_msg)
             bag.write('/cam4/depth/color/points', cam4_msg)
 
-            # bag.write('/robot_pose', robot_pose_msg)
             ee_pose = robot.get_ee_pose()
             bag.write('/ee_pose', ee_pose)
 
@@ -118,34 +94,28 @@ def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
 
             bag.close()
 
-            print(f"Recorded pcd at {os.path.basename(data_path)}...")
+            print(f"Trial {trial}: recorded pcd at {round(time_now, 3)} " + \
+                f"({round(time_diff_1, 3)}, {round(time_diff_2, 3)}, {round(time_diff_3, 3)})...")
+            
+            time_last = time_now
 
-            # cd = os.path.dirname(os.path.realpath(sys.argv[0]))
-            # debug_bag_path = os.path.join(cd, '..', 'raw_data', 'debug', 'state_0.bag')
-            # os.system(f'cp {debug_bag_path} {data_path}")}')
-            # print(f"Copied pcd at {os.path.basename(data_path)}...")
+    if pcd_dy_signal == 0:
+        if time_start > 0 and not action_counted:
+            n_actions += 1
+            action_counted = True
 
-            signal = 0
-
-    else:
-        raise NotImplementedError
+        if n_actions >= n_actions_max:
+            n_actions = 0
+            trial += 1
+            time_start = 0.0
+            time_last = 0.0
+            time_now = 0.0
 
 
 def main():
-    global signal
-    global trial
-    global mode
-    global data_path
-    global robot
+    rospy.init_node('collect_dy_data', anonymous=True)
 
-    if len(sys.argv) < 2:
-        print("Please enter the mode!")
-        exit()
-
-    rospy.init_node('vision_sensor', anonymous=True)
-
-    rospy.Subscriber("/signal", UInt8, signal_callback)
-    rospy.Subscriber("/raw_data_path", String, path_callback)
+    rospy.Subscriber("/action_signal", UInt8, action_signal_callback)
     
     tss = ApproximateTimeSynchronizer(
         (Subscriber("/cam1/depth/color/points", PointCloud2), 
@@ -158,29 +128,7 @@ def main():
 
     tss.registerCallback(cloud_callback)
 
-    cd = os.path.dirname(os.path.realpath(sys.argv[0]))
-    mode = sys.argv[1] # explore, record, or control
-    if mode == 'explore':
-        robot = random_explore.robot
-        # task_name = 'gripping_sym_plane_robot_v3'
-        # task_name = 'gripping_asym_robot_v3'
-        # task_name = 'rolling_small_robot_v1'
-        task_name = 'pressing_small_robot_v1'
-        data_path = os.path.join(cd, '..', 'raw_data', task_name)
-        os.system('mkdir -p ' + f"{data_path}")
-        data_list = sorted(glob.glob(os.path.join(data_path, '*')))
-        if len(data_list) == 0:
-            trial = 0
-        else:
-            trial = int(os.path.basename(data_list[-1]).lstrip('0')) + 1
-    elif mode == 'record':
-        robot = manipulate.ManipulatorSystem()
-    elif mode == 'control':
-        robot = execute_actions.robot
-    else:
-        raise NotImplementedError
-
-    with open(os.path.join(os.path.join(cd, '..', 'env'), 'camera_pose_world.yml'), 'r') as f:
+    with open(os.path.join(cd, '..', 'env', 'camera_pose_world.yml'), 'r') as f:
         cam_pose_dict = yaml.load(f, Loader=yaml.FullLoader)
 
     static_br = tf2_ros.StaticTransformBroadcaster()
@@ -203,10 +151,8 @@ def main():
 
     static_br.sendTransform(static_ts_list)
 
-    print(f"Ready to {mode}!")
     rate = rospy.Rate(100)
     while not rospy.is_shutdown():
-        if signal == 2: break
         rate.sleep()
 
 

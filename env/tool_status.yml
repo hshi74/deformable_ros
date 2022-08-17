@@ -28,6 +28,9 @@ punch_circle:
 punch_square:
   loc: f1-high
   status: ready
+pusher:
+  loc: f2-low
+  status: ready
 roller_large:
   loc: f0-low
   status: ready

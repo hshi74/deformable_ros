@@ -1,4 +1,3 @@
-import manipulate
 import numpy as np
 import os
 import rosbag
@@ -9,19 +8,22 @@ import tf2_ros
 import yaml
 import cv2
 
+from act_from_param import *
 from cv_bridge import CvBridge
 from datetime import datetime
 from geometry_msgs.msg import TransformStamped
+from manipulate import ManipulatorSystem
 from message_filters import ApproximateTimeSynchronizer, Subscriber
 from rospy_tutorials.msg import Floats
 from rospy.numpy_msg import numpy_msg
 from sensor_msgs.msg import Image, PointCloud2
 from std_msgs.msg import UInt8, Float32, String
 from timeit import default_timer as timer
+from transforms3d.axangles import axangle2mat
 from transforms3d.quaternions import *
 
 
-robot = manipulate.ManipulatorSystem()
+robot = ManipulatorSystem()
 
 data_path_signal = 0
 data_path = ''
@@ -96,45 +98,43 @@ def image_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
 
 def run(tool_name, param_seq):
     if 'gripper' in tool_name:
-        param_seq = param_seq.reshape(-1, 3)
+        param_seq = param_seq.reshape(-1, 5)
         for i in range(len(param_seq)):
-            grip_h = 0.18
-            pregrip_dh = 0.1
-            pos_noise, rot_noise, grip_width = param_seq[i]
-            grip_pos_x = 0.4 - pos_noise * np.sin(rot_noise - np.pi / 2)
-            grip_pos_y = -0.1 + pos_noise * np.cos(rot_noise - np.pi / 2)
             print(f'===== Grip {i+1}: {param_seq[i]} =====')
-            if i == len(param_seq) - 1:
-                grip_mode = 'react'
-            else:
-                grip_mode = 'na'
-            robot.grip((grip_pos_x, grip_pos_y, rot_noise), grip_h, pregrip_dh, grip_width, mode=grip_mode)
+            grip(robot, param_seq[i])
+
     elif 'press' in tool_name or 'punch' in tool_name:
-        param_seq = param_seq.reshape(-1, 4)
+        if 'circle' in tool_name:
+            param_seq = param_seq.reshape(-1, 3)
+            param_seq = np.concatenate((param_seq, np.zeros((len(param_seq), 1))), axis=1)
+        else:
+            param_seq = param_seq.reshape(-1, 4)
+
         for i in range(len(param_seq)):
-            prepress_dh = 0.1
-            press_pos_x, press_pos_y, press_pos_z, rot_noise = param_seq[i]
             print(f'===== Press {i+1}: {param_seq[i]} =====')
-            if i == len(param_seq) - 1:
-                press_mode = 'react'
-            else:
-                press_mode = 'na'
-            robot.press((press_pos_x, press_pos_y, press_pos_z), rot_noise, prepress_dh, mode=press_mode)
+            press(robot, param_seq[i])
+
     elif 'roller' in tool_name:
         param_seq = param_seq.reshape(-1, 5)
         for i in range(len(param_seq)):
-            preroll_dh = 0.07
-            roll_pos_x, roll_pos_y, roll_pos_z, rot_noise, roll_dist = param_seq[i]
-            start_pos = [roll_pos_x, roll_pos_y, roll_pos_z]
-            roll_rot = [0.0, 0.0, rot_noise]
-            roll_delta = axangle2mat([0, 0, 1], roll_rot[2] + np.pi / 4) @ np.array([roll_dist, 0, 0]).T
-            end_pos = start_pos + roll_delta
-            print(f'===== Roll {i+1}: {param_seq[i]} =====')
-            if i == len(param_seq) - 1:
-                roll_mode = 'react'
-            else:
-                roll_mode = 'na'
-            robot.roll(start_pos, roll_rot, end_pos, preroll_dh, mode=roll_mode)
+            roll(robot, param_seq[i])
+
+    elif 'cutter_planar' in tool_name:
+        cut_planar(robot, param_seq)
+
+    elif 'cutter_circular' in tool_name:
+        cut_circular(robot, param_seq)
+
+    elif 'pusher' in tool_name:
+        push(robot, param_seq)
+
+    elif 'spatula' in tool_name:
+        grip_width = 0.01 if 'large' in tool_name else 0.02
+        pick_and_place(robot, param_seq, grip_width)
+
+    elif 'hook' in tool_name:
+        hook(robot)
+
     else:
         raise NotImplementedError
 
@@ -161,7 +161,6 @@ def react():
             else:
                 raise ValueError
 
-            import pdb; pdb.set_trace()
             if robot.tool_status[tool_name] == 'ready':
                 for tool, status in robot.tool_status.items():
                     if status == 'using':

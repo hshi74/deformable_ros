@@ -55,7 +55,8 @@ class ManipulatorSystem:
             ip_address="192.168.0.2",
         )
 
-        self.signal_pub = rospy.Publisher('/signal', UInt8, queue_size=10)
+        # 0: start, 1: end, 2: away
+        self.action_signal_pub = rospy.Publisher('/action_signal', UInt8, queue_size=10)
 
         # Reset to rest pose
         # self.rest_pose = self.pos_rz_to_pose((0.437, 0.0, 0), 0.4) # for robocraft
@@ -116,9 +117,9 @@ class ManipulatorSystem:
         self.arm.terminate_current_policy()
 
 
-    def reset(self, time_to_go=3.0):
+    def reset(self, time_to_go=2.0):
+        self.set_policy(self.gain_dict['low']['Kx'], self.gain_dict['low']['Kxd'])
         self.move_to(self.rest_pos, self.rest_quat, time_to_go)
-        self.open_gripper()
 
 
     def update_urdf(self, new_urdf_path):
@@ -140,6 +141,11 @@ class ManipulatorSystem:
         )
 
         return self.arm.send_torch_policy(torch_policy=torch_policy, blocking=False)
+
+
+    def publish(self, signal):
+        self.action_signal_pub.publish(UInt8(signal))
+        time.sleep(0.2)
 
 
     def move_to(self, pos, quat, time_to_go=2.0):
@@ -441,40 +447,9 @@ class ManipulatorSystem:
         self.move_to(*self.rest_pose, time_to_go=2.0)
 
 
-    def cut(self, cut_pos, cut_rot, precut_dh, push_y, mode='explore'):
-        self.set_policy(self.gain_dict['high']['Kx'], self.gain_dict['high']['Kxd'])
+    def grip(self, grip_params, grip_h, pregrip_dh, grip_width):
+        self.publish(0)
 
-        # Move to precut
-        print("=> precut:")
-        precut_pos = [cut_pos[0], cut_pos[1], cut_pos[2] + precut_dh]
-        precut_pose = self.pos_rot_to_pose(precut_pos, cut_rot)
-        self.move_to(*precut_pose)
-
-        if mode == 'explore':
-            self.signal_pub.publish(UInt8(1))
-            time.sleep(0.2)
-
-        # Cut
-        print("=> cut:")
-        cut_pose = self.pos_rot_to_pose(cut_pos, cut_rot)
-        self.move_to(*cut_pose, time_to_go=3.0)
-
-        if push_y > 0:
-            # Separate
-            print("=> separate:")
-            separate_pos = [cut_pos[0], cut_pos[1] + push_y, cut_pos[2]]
-            separate_pose = self.pos_rot_to_pose(separate_pos, cut_rot)
-            self.move_to(*separate_pose)
-
-        if mode == 'explore':
-            self.signal_pub.publish(UInt8(0))
-            time.sleep(0.2)
-
-        print("=> back to precut:")
-        self.move_to(*precut_pose)
-
-
-    def grip(self, grip_params, grip_h, pregrip_dh, grip_width, mode='explore'):
         self.set_policy(self.gain_dict['high']['Kx'], self.gain_dict['high']['Kxd'])
 
         # Move to pregrip
@@ -488,35 +463,59 @@ class ManipulatorSystem:
         grip_pose = self.pos_rz_to_pose(grip_params, grip_h)
         self.move_to(*grip_pose, time_to_go=1.0)
 
-        if mode == 'explore':
-            self.signal_pub.publish(UInt8(1))
-            time.sleep(0.1)
+        self.publish(1)
 
         # grip
         self.close_gripper(grip_width, blocking=False, grip_params=(0.01, 300))
 
         # if mode == 'react':
         #     time.sleep(5.0)
-        #     self.signal_pub.publish(UInt8(1))
+        #     self.action_signal_pub.publish(UInt8(1))
         #     time.sleep(1.0)
 
         # Release
         self.open_gripper()
         # Lift to pregrip
-        
-        if mode == 'explore':
-            self.signal_pub.publish(UInt8(0))
-            time.sleep(0.1)
+
+        self.publish(2)
 
         print("=> back to pregrip:")
         self.move_to(*pregrip_pose)
 
-        if mode == 'react':
-            self.signal_pub.publish(UInt8(1))
-            time.sleep(0.1)
+        self.reset()
+        self.publish(3)
+
+
+    def press(self, press_pos, press_rot, prepress_dh, mode='explore'):
+        self.publish(0)
+        
+        self.set_policy(self.gain_dict['high']['Kx'], self.gain_dict['high']['Kxd'])
+
+        # Move to prepress
+        print("=> prepress:")
+        prepress_pos = [press_pos[0], press_pos[1], press_pos[2] + prepress_dh]
+        prepress_pose = self.pos_rot_to_pose(prepress_pos, press_rot)
+        self.move_to(*prepress_pose)
+
+        self.publish(1)
+
+        # Press
+        print("=> press:")
+        press_pose = self.pos_rot_to_pose(press_pos, press_rot)
+        self.move_to(*press_pose)
+
+        self.publish(2)
+
+        print("=> back to prepress:")
+        self.move_to(*prepress_pose)
+
+        self.reset()
+        self.publish(3)
 
 
     def roll(self, start_pos, roll_rot, end_pos, preroll_dh, mode='explore'):
+        self.publish(0)
+
         self.set_policy(self.gain_dict['high']['Kx'], self.gain_dict['high']['Kxd'])
 
         # Move to preroll
@@ -525,9 +524,7 @@ class ManipulatorSystem:
         preroll_pose = self.pos_rot_to_pose(preroll_pos, roll_rot)
         self.move_to(*preroll_pose)
 
-        if mode == 'explore':
-            self.signal_pub.publish(UInt8(1))
-            time.sleep(0.2)
+        self.publish(1)
 
         # Press
         print("=> press:")
@@ -539,49 +536,123 @@ class ManipulatorSystem:
         spread_pose = self.pos_rot_to_pose(end_pos, roll_rot)
         self.move_to(*spread_pose)
 
-        if mode == 'explore':
-            self.signal_pub.publish(UInt8(0))
-            time.sleep(0.2)
+        self.publish(2)
         
-        if mode == 'react':
-            self.signal_pub.publish(UInt8(1))
-            time.sleep(0.2)
-
         print("=> back to preroll:")
         self.move_to(*preroll_pose)
 
+        self.reset()
+        self.publish(3)
 
-    def press(self, press_pos, press_rot, prepress_dh, mode='explore'):
+
+    def cut_planar(self, cut_pos, cut_rot, precut_dh, push_y):
+        self.publish(0)
+
         self.set_policy(self.gain_dict['high']['Kx'], self.gain_dict['high']['Kxd'])
 
-        # Move to prepress
-        print("=> prepress:")
-        prepress_pos = [press_pos[0], press_pos[1], press_pos[2] + prepress_dh]
-        prepress_pose = self.pos_rot_to_pose(prepress_pos, press_rot)
-        self.move_to(*prepress_pose)
+        # Move to precut
+        print("=> precut:")
+        precut_pos = [cut_pos[0], cut_pos[1], cut_pos[2] + precut_dh]
+        precut_pose = self.pos_rot_to_pose(precut_pos, cut_rot)
+        self.move_to(*precut_pose)
 
-        if mode == 'explore':
-            self.signal_pub.publish(UInt8(1))
-            time.sleep(0.2)
+        # Cut
+        print("=> cut:")
+        cut_pose = self.pos_rot_to_pose(cut_pos, cut_rot)
+        self.move_to(*cut_pose, time_to_go=3.0)
 
-        # Press
-        print("=> press:")
-        press_pose = self.pos_rot_to_pose(press_pos, press_rot)
-        self.move_to(*press_pose)
+        # Separate
+        print("=> separate:")
+        separate_pos = [cut_pos[0], cut_pos[1] + push_y, cut_pos[2]]
+        separate_pose = self.pos_rot_to_pose(separate_pos, cut_rot)
+        self.move_to(*separate_pose)
 
-        if mode == 'explore':
-            self.signal_pub.publish(UInt8(0))
-            time.sleep(0.2)
+        print("=> back to precut:")
+        self.move_to(*precut_pose)
+
+        self.reset()
+        self.publish(3)
+
+
+    def cut_circular(self, cut_pos, cut_rot, precut_dh):
+        self.publish(0)
+
+        self.set_policy(self.gain_dict['high']['Kx'], self.gain_dict['high']['Kxd'])
+
+        # Move to precut
+        print("=> precut:")
+        precut_pos = [cut_pos[0], cut_pos[1], cut_pos[2] + precut_dh]
+        precut_pose = self.pos_rot_to_pose(precut_pos, cut_rot)
+        self.move_to(*precut_pose)
+
+        # Cut
+        print("=> cut:")
+        cut_pose = self.pos_rot_to_pose(cut_pos, cut_rot)
+        self.move_to(*cut_pose, time_to_go=3.0)
+
+        # Rotate around
+        cut_rot_y_pos = [0.05, 0.0, 0]
+        print("=> rotate to y+:")
+        rotate_pose = self.pos_rot_to_pose(cut_pos, cut_rot_y_pos)
+        self.move_to(*rotate_pose, time_to_go=1.0)
+
+        cut_rot_y_neg = [-0.05, 0.0, 0]
+        print("=> rotate to y-:")
+        rotate_pose = self.pos_rot_to_pose(cut_pos, cut_rot_y_neg)
+        self.move_to(*rotate_pose, time_to_go=1.0)
+
+        print("=> back to precut:")
+        self.move_to(*precut_pose)
+
+        self.reset()
+        self.publish(3)
+
+
+    def push(self, push_center, prepush_dh):
+        self.publish(0)
         
-        if mode == 'react':
-            self.signal_pub.publish(UInt8(1))
-            time.sleep(0.2)
+        self.set_policy(self.gain_dict['high']['Kx'], self.gain_dict['high']['Kxd'])
 
-        print("=> back to prepress:")
-        self.move_to(*prepress_pose)
+        r = 0.0325
+        # moves = [[(-(r+0.02)*np.sqrt(2), 0.02*np.sqrt(2)), (0, (r+0.04)*np.sqrt(2)), 0],
+        #     [(-(r+0.02)*np.sqrt(2), -0.02*np.sqrt(2)), (0, -(r+0.04)*np.sqrt(2)), np.pi/2],
+        #     [(r+0.04, -0.1), (r+0.04, 0.1), np.pi/4]]
+        
+        # cut and push vertically, then push horizontally
+        moves = [[(0.005, r+0.04+0.005), (-r-0.02, r+0.04+0.005), -np.pi/4],
+            [(-0.005, r+0.04+0.005), (r+0.02, r+0.04+0.005), -np.pi/4],
+            [(0.005, -r-0.04), (-r-0.02, -r-0.04), -np.pi/4],
+            [(-0.005, -r-0.04), (r+0.02, -r-0.04), -np.pi/4]]
+            # [(-r-0.015, -r-0.06), (-r, r+0.12), -np.pi/4],
+            # [(r+0.015, -r-0.06), (r, r+0.12), -np.pi/4]
+
+        for i in range(len(moves)):
+            # Move to precut
+            print(f"=> push:")
+            push_rot = [0.0, 0.0, moves[i][2]]
+            prepress_pos = [push_center[0] + moves[i][0][0], push_center[1] + moves[i][0][1], push_center[2] + prepush_dh]
+            prepress_pose = self.pos_rot_to_pose(prepress_pos, push_rot)
+            self.move_to(*prepress_pose)
+
+            prepush_pos = [push_center[0] + moves[i][0][0], push_center[1] + moves[i][0][1], push_center[2]]
+            # print(prepush_pos)
+            prepush_pose = self.pos_rot_to_pose(prepush_pos, push_rot)
+            self.move_to(*prepush_pose)
+            
+            push_pos = [push_center[0] + moves[i][1][0], push_center[1] + moves[i][1][1], push_center[2]]
+            # print(push_pos)
+            push_pose = self.pos_rot_to_pose(push_pos, push_rot)
+            
+            time_to_go = 4.0 if i > 3 else 2.0
+            self.move_to(*push_pose, time_to_go=time_to_go)
+
+        self.reset()
+        self.publish(3)
 
 
     def pick_and_place(self, pick_params, pick_h, prepick_dh, place_params, place_h, preplace_dh, grip_width):
+        self.publish(0)
+
         self.set_policy(self.gain_dict['high']['Kx'], self.gain_dict['high']['Kxd'])
 
         print("=> prepick:")
@@ -617,8 +688,13 @@ class ManipulatorSystem:
         print("=> back to prepick:")
         self.move_to(*prepick_pose)
 
+        self.reset()
+        self.publish(3)
+
 
     def hook_dumpling_clip(self, hook_pos, debug=False):
+        self.publish(0)
+        
         self.set_policy(self.gain_dict['high']['Kx'], self.gain_dict['high']['Kxd'])
 
         hook_rot = [0.0, 0.0, np.pi / 4]
@@ -698,10 +774,13 @@ class ManipulatorSystem:
         print("=> back to rest pose:")
         self.move_to(self.rest_pos, self.rest_quat)
 
+        self.reset()
+        self.publish(3)
+
 
 def main():
     # debug pick and place tools
-    # rospy.init_node('debug_manipulate', anonymous=True)
+    rospy.init_node('debug_manipulate', anonymous=True)
 
     robot = ManipulatorSystem()
 
@@ -727,12 +806,12 @@ def main():
     'cutter_planar', 'cutter_circular', 'hook']
     random.shuffle(tool_list)
 
-    tool_list = ['hook']
+    tool_list = ['cutter_planar']
 
     for tool in tool_list:
-        robot.take_away_tool(tool, debug=False)
-        robot.hook_dumpling_clip([0.39, -0.197, 0.2], debug=False)
-        robot.put_back_tool(tool)
+        # robot.take_away_tool(tool, debug=False)
+        robot.push([0.43, -0.1, 0.225], prepush_dh=0.07)
+        # robot.put_back_tool(tool)
 
 
 if __name__ == "__main__":
