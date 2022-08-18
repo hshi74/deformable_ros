@@ -17,7 +17,7 @@ with open(os.path.join(cd, '..', 'env', 'camera_pose_world.yml'), 'r') as f:
 depth_optical_frame_pose = [0, 0, 0, 0.5, -0.5, 0.5, -0.5]
 
 
-def get_center(pcd_msgs, visualize=False):
+def get_cube(pcd_msgs, target_color='blue', visualize=True):
     pcd_all = o3d.geometry.PointCloud()
     for i in range(len(pcd_msgs)):
         cloud_rec = ros_numpy.point_cloud2.pointcloud2_to_array(pcd_msgs[i])
@@ -32,9 +32,10 @@ def get_center(pcd_msgs, visualize=False):
         cloud_bgr = np.frombuffer(cloud_rgb_bytes, dtype=np.uint8).reshape(-1, 4) / 255 
         cloud_rgb = cloud_bgr[:, ::-1]
 
-        x_filter = (points.T[0] > 0.4 - 0.1) & (points.T[0] < 0.4 + 0.1)
-        y_filter = (points.T[1] > -0.1 - 0.1) & (points.T[1] < -0.1 + 0.1)
-        z_filter = (points.T[2] > 0 + 0.005) & (points.T[2] < 0 + 0.07)
+        # xyz filter
+        x_filter = (points.T[0] > 0.4 - 0.07) & (points.T[0] < 0.4 + 0.07)
+        y_filter = (points.T[1] > -0.1 - 0.07) & (points.T[1] < -0.1 + 0.07)
+        z_filter = (points.T[2] > 0 + 0.01) & (points.T[2] < 0 + 0.05) # or 0.005
         points = points[x_filter & y_filter & z_filter]
         cloud_rgb = cloud_rgb[x_filter & y_filter & z_filter, 1:]
         
@@ -46,10 +47,16 @@ def get_center(pcd_msgs, visualize=False):
 
     if visualize:
         o3d.visualization.draw_geometries([pcd_all])
-
+    
+    # color filter
     pcd_colors = np.asarray(pcd_all.colors)
-    # color filters
-    cube_label = np.where(np.logical_and(pcd_colors[:, 0] < 0.2, pcd_colors[:, 2] > 0.2))
+    if target_color == 'blue':
+        cube_label = np.where(np.logical_and(pcd_colors[:, 0] < 0.2, pcd_colors[:, 2] > 0.2))
+    elif target_color == 'white':
+        cube_label = np.where((pcd_colors[:, 0] > 0.6) & (pcd_colors[:, 1] > 0.55))
+    else:
+        raise NotImplementedError
+    
     cube = pcd_all.select_by_index(cube_label[0])
 
     cube = cube.voxel_down_sample(voxel_size=0.001)
@@ -60,6 +67,4 @@ def get_center(pcd_msgs, visualize=False):
     if visualize:
         o3d.visualization.draw_geometries([cube])
 
-    mid_point = list(np.mean(np.asarray(cube.points), axis=0))
-
-    return mid_point
+    return cube

@@ -73,7 +73,7 @@ def cut_circular(robot, params, cut_h=0.18, precut_dh=0.07):
     robot.cut_circular([cut_x, cut_y, cut_h], [0.0, 0.0, 0.0], precut_dh)
 
 
-def push(robot, params, push_h=0.215, prepush_dh=0.07):
+def push(robot, params, push_h=0.22, prepush_dh=0.07):
     push_x, push_y = params
     robot.push([push_x, push_y, push_h], prepush_dh)
 
@@ -86,4 +86,4 @@ def pick_and_place(robot, params, grip_width, pick_h=0.18, prepick_dh=0.2,
 
 
 def hook(robot):
-    robot.hook_dumpling_clip([0.41, -0.2, 0.2])
+    robot.hook_dumpling_clip([0.4, -0.2, 0.2])

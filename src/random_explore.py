@@ -15,7 +15,7 @@ from sensor_msgs.msg import PointCloud2
 from std_msgs.msg import UInt8
 from transforms3d.axangles import axangle2mat
 from transforms3d.quaternions import *
-from utils import get_center
+from utils import get_cube
 
 
 robot = ManipulatorSystem()
@@ -32,7 +32,9 @@ def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
 
     if pcd_signal == 1:
         pcd_msgs = [cam1_msg, cam2_msg, cam3_msg, cam4_msg]
-        center = get_center(pcd_msgs)
+        cube = get_cube(pcd_msgs)
+        center = list(np.mean(np.asarray(cube.points), axis=0))
+
         pcd_signal = 0
 
 
@@ -84,7 +86,7 @@ def random_explore(tool_name):
                 print(f"===== Push: {center} =====")
                 push(robot, center[:2])
             elif 'spatula' in tool_name:
-                params = [*center, 0.41, -0.29]
+                params = [*center[:2], 0.41, -0.29]
                 print(f"===== Pick and Place: {params} =====")
                 grip_width = 0.01 if 'large' in tool_name else 0.02
                 pick_and_place(robot, params, grip_width)

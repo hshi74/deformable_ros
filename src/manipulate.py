@@ -97,16 +97,16 @@ class ManipulatorSystem:
             'l0-0': [0.3425, 0.29, -np.pi / 4, 0.32],
             'l0-1': [0.4125, 0.29, -np.pi / 4, 0.32],
             'l0-2': [0.4625, 0.29, -np.pi / 4, 0.32],
-            'l1-0': [0.625, 0.2065, np.pi / 4, 0.325],
-            'l1-1': [0.625, 0.2815, np.pi / 4, 0.325],
+            'l1-0': [0.6225, 0.2065, np.pi / 4, 0.325],
+            'l1-1': [0.6225, 0.2815, np.pi / 4, 0.325],
             'f0-low': [0.5975, -0.265, -np.pi / 4, 0.225],
-            'f0-mid': [0.6575, -0.27, -np.pi / 4, 0.33],
+            'f0-mid': [0.6575, -0.27, -np.pi / 4, 0.3325],
             'f0-high': [0.725, -0.2725, -np.pi / 4, 0.44],
             'f1-low': [0.6025, -0.115, -np.pi / 4, 0.225],
-            'f1-mid': [0.665, -0.115, -np.pi / 4, 0.33],
+            'f1-mid': [0.665, -0.115, -np.pi / 4, 0.3325],
             'f1-high': [0.7275, -0.1175, -np.pi / 4, 0.44],
             'f2-low': [0.6025, 0.04, -np.pi / 4, 0.225],
-            'f2-mid': [0.665, 0.04, -np.pi / 4, 0.33],
+            'f2-mid': [0.665, 0.04, -np.pi / 4, 0.3325],
             'f2-high': [0.7275, 0.04, -np.pi / 4, 0.44],
         }
 
@@ -591,6 +591,16 @@ class ManipulatorSystem:
         self.move_to(*cut_pose, time_to_go=3.0)
 
         # Rotate around
+        cut_rot_x_pos = [0.0, 0.05, 0]
+        print("=> rotate to x+:")
+        rotate_pose = self.pos_rot_to_pose(cut_pos, cut_rot_x_pos)
+        self.move_to(*rotate_pose, time_to_go=1.0)
+
+        cut_rot_x_neg = [0.0, -0.05, 0]
+        print("=> rotate to x-:")
+        rotate_pose = self.pos_rot_to_pose(cut_pos, cut_rot_x_neg)
+        self.move_to(*rotate_pose, time_to_go=1.0)
+
         cut_rot_y_pos = [0.05, 0.0, 0]
         print("=> rotate to y+:")
         rotate_pose = self.pos_rot_to_pose(cut_pos, cut_rot_y_pos)
@@ -619,10 +629,10 @@ class ManipulatorSystem:
         #     [(r+0.04, -0.1), (r+0.04, 0.1), np.pi/4]]
         
         # cut and push vertically, then push horizontally
-        moves = [[(0.005, r+0.04+0.005), (-r-0.02, r+0.04+0.005), -np.pi/4],
-            [(-0.005, r+0.04+0.005), (r+0.02, r+0.04+0.005), -np.pi/4],
-            [(0.005, -r-0.04), (-r-0.02, -r-0.04), -np.pi/4],
-            [(-0.005, -r-0.04), (r+0.02, -r-0.04), -np.pi/4]]
+        moves = [[(0.005, r+0.04+0.0025), (-r-0.015, r+0.04+0.005), 3*np.pi/4],
+            [(-0.005, r+0.04+0.0025), (r+0.04, r+0.04+0.005), 3*np.pi/4],
+            [(0.005, -r-0.04-0.0025), (-r-0.015, -r-0.04), 3*np.pi/4],
+            [(-0.005, -r-0.04-0.0025), (r+0.04, -r-0.04), 3*np.pi/4]]
             # [(-r-0.015, -r-0.06), (-r, r+0.12), -np.pi/4],
             # [(r+0.015, -r-0.06), (r, r+0.12), -np.pi/4]
 
@@ -634,7 +644,7 @@ class ManipulatorSystem:
             prepress_pose = self.pos_rot_to_pose(prepress_pos, push_rot)
             self.move_to(*prepress_pose)
 
-            prepush_pos = [push_center[0] + moves[i][0][0], push_center[1] + moves[i][0][1], push_center[2]]
+            prepush_pos = [push_center[0] + moves[i][0][0], push_center[1] + moves[i][0][1], push_center[2] - 0.005]
             # print(prepush_pos)
             prepush_pose = self.pos_rot_to_pose(prepush_pos, push_rot)
             self.move_to(*prepush_pose)
@@ -666,8 +676,11 @@ class ManipulatorSystem:
         self.move_to(*pick_pose, time_to_go=2.0)
 
         # grip
-        self.close_gripper(grip_width, blocking=False, grip_params=(0.02, 20))
-        time.sleep(3.0)
+        self.close_gripper(0.005, blocking=False, grip_params=(0.02, 50))
+        time.sleep(2.0)
+        
+        self.close_gripper(grip_width, blocking=False, grip_params=(0.02, 50))
+        time.sleep(2.0)
 
         print("=> back to prepick:")
         self.move_to(*prepick_pose)
