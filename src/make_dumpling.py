@@ -53,7 +53,7 @@ def get_center(bbox=True):
         return cube.get_center()
 
 
-def get_cut_params(target_volume=6e-5, visualize=False):
+def get_cut_params(target_volume=5e-5, visualize=False):
     bbox = cube.get_axis_aligned_bounding_box()
     
     if visualize:
@@ -81,12 +81,11 @@ def make_dumpling(debug=True):
     #         break
 
     # print(f"===== Step 1: Cut the dough to the right volumes =====")
-    # if robot.tool_status['cutter_planar']['status'] == 'ready':
-    #     robot.take_away_tool('cutter_planar')
+    # robot.take_away_tool('cutter_planar')
     # wait_for_visual()
     # params = get_cut_params()
     # print(f"===== Cut params: {params} =====")
-    # cut_planar(robot, params, push_y=0.15)
+    # cut_planar(robot, params, push_y=0.2)
     
     # robot.put_back_tool('cutter_planar')
 
@@ -125,39 +124,39 @@ def make_dumpling(debug=True):
 
     # robot.put_back_tool('roller_large')
 
-    # print(f"===== Step 5: cut the dumpling skin =====")
-    # robot.take_away_tool('cutter_circular')
-    # wait_for_visual()
-    # center = get_center(bbox=False)
-    # cut_circular(robot, center[:2])
+    print(f"===== Step 5: cut the dumpling skin =====")
+    robot.take_away_tool('cutter_circular')
+    wait_for_visual()
+    # this center will be reused for the following actions
+    center = get_center(bbox=False)
+    cut_circular(robot, center[:2])
     
-    # robot.put_back_tool('cutter_circular')
+    robot.put_back_tool('cutter_circular')
 
-    # print(f"===== Step 6: push away undesired dough =====")
-    # robot.take_away_tool('cutter_planar')
+    print(f"===== Step 6: push away undesired dough =====")
+    robot.take_away_tool('cutter_planar')
     # wait_for_visual()
     # center = get_center(bbox=False)
-    # push(robot, center[:2])
-    # robot.put_back_tool('cutter_planar')
+    push(robot, center[:2])
+    robot.put_back_tool('cutter_planar')
 
     print(f"===== Step 7: pick and place the dumping skin =====")
-    if robot.tool_status['spatula_small']['status'] == 'ready':
-        robot.take_away_tool('spatula_small')
-    wait_for_visual()
-    center = get_center(bbox=False)
-    pick_and_place(robot, [*center[:2], 0.395, -0.3], 0.02)
+    robot.take_away_tool('spatula_small')
+    # wait_for_visual()
+    # center = get_center(bbox=False)
+    pick_and_place_skin(robot, [*center[:2], 0.395, -0.29], 0.005)
     robot.put_back_tool('spatula_small')
 
     print(f"===== Step 7: pick and place the dumping filling =====")
     robot.take_away_tool('spatula_large')
     # wait_for_visual()
-    pick_and_place(robot, [0.5, -0.3, 0.395, -0.29], 0.015)
+    pick_and_place_filling(robot, [0.5, -0.3, 0.395, -0.29], 0.015)
     robot.put_back_tool('spatula_large')
 
-    # print(f"===== Step 8: hook and close the dumpling clip =====")
-    # robot.take_away_tool('hook')
-    # hook(robot)
-    # robot.put_back_tool('hook')
+    print(f"===== Step 8: hook and close the dumpling clip =====")
+    robot.take_away_tool('hook')
+    hook(robot)
+    robot.put_back_tool('hook')
 
 
 def main():

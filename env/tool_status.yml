@@ -42,4 +42,4 @@ spatula_large:
   status: ready
 spatula_small:
   loc: l1-0
-  status: using
+  status: ready

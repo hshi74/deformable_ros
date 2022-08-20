@@ -85,11 +85,14 @@ def random_explore(tool_name):
             elif 'pusher' in tool_name:
                 print(f"===== Push: {center} =====")
                 push(robot, center[:2])
-            elif 'spatula' in tool_name:
+            elif 'spatula_small' in tool_name:
                 params = [*center[:2], 0.41, -0.29]
                 print(f"===== Pick and Place: {params} =====")
-                grip_width = 0.01 if 'large' in tool_name else 0.02
-                pick_and_place(robot, params, grip_width)
+                pick_and_place_skin(robot, params, 0.005)
+            elif 'spatula_large' in tool_name:
+                params = [*center[:2], 0.41, -0.29]
+                print(f"===== Pick and Place: {params} =====")
+                pick_and_place_filling(robot, params, 0.01)
             elif 'hook' in tool_name:
                 print(f"===== Hook =====")
                 hook(robot)

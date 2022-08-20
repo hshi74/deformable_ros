@@ -128,9 +128,11 @@ def run(tool_name, param_seq):
     elif 'pusher' in tool_name:
         push(robot, param_seq)
 
-    elif 'spatula' in tool_name:
-        grip_width = 0.01 if 'large' in tool_name else 0.02
-        pick_and_place(robot, param_seq, grip_width)
+    elif 'spatula_small' in tool_name:
+        pick_and_place_skin(robot, param_seq, 0.005)
+
+    elif 'spatula_large' in tool_name:
+        pick_and_place_filling(robot, param_seq, 0.01)
 
     elif 'hook' in tool_name:
         hook(robot)

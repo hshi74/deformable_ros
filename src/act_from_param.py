@@ -78,11 +78,18 @@ def push(robot, params, push_h=0.22, prepush_dh=0.07):
     robot.push([push_x, push_y, push_h], prepush_dh)
 
 
-def pick_and_place(robot, params, grip_width, pick_h=0.18, prepick_dh=0.2, 
-    place_h=0.22, preplace_dh=0.05):
+def pick_and_place_skin(robot, params, grip_width, pick_h=0.18, prepick_dh=0.2, 
+    place_h=0.2175, preplace_dh=0.1):
     pick_x, pick_y, place_x, place_y = params
-    robot.pick_and_place((pick_x, pick_y, -np.pi / 4), pick_h, prepick_dh, 
-        (place_x, place_y, -np.pi / 4), place_h, preplace_dh, grip_width)
+    robot.pick_and_place_skin([pick_x, pick_y, pick_h], [0, 0, -np.pi / 4], prepick_dh, 
+        [place_x, place_y, place_h], [0, 0, -np.pi / 4], preplace_dh, grip_width)
+
+
+def pick_and_place_filling(robot, params, grip_width, pick_h=0.18, prepick_dh=0.2, 
+    place_h=0.2175, preplace_dh=0.05):
+    pick_x, pick_y, place_x, place_y = params
+    robot.pick_and_place_filling([pick_x, pick_y, pick_h], [0, 0, -np.pi / 4], prepick_dh, 
+        [place_x, place_y, place_h], [0, 0, -np.pi / 4], preplace_dh, grip_width)
 
 
 def hook(robot):
