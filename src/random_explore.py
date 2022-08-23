@@ -1,4 +1,5 @@
 
+from re import U
 import numpy as np
 import os
 import readchar
@@ -25,21 +26,44 @@ with open('/scr/hxu/projects/RoboCook/config/tool_plan_params.yml', 'r') as f:
 
 
 pcd_signal = 0
-center = None
+cube = None
 def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
     global pcd_signal
-    global center
+    global cube
 
     if pcd_signal == 1:
         pcd_msgs = [cam1_msg, cam2_msg, cam3_msg, cam4_msg]
         cube = get_cube(pcd_msgs)
-        center = list(np.mean(np.asarray(cube.points), axis=0))
 
         pcd_signal = 0
 
 
+def wait_for_visual():
+    global pcd_signal
+
+    pcd_signal = 1
+    rate = rospy.Rate(100)
+    while not rospy.is_shutdown():
+        if pcd_signal == 0:
+            break
+
+        rate.sleep()
+
+
+def get_center(bbox=True):
+    if bbox:
+        bbox = cube.get_axis_aligned_bounding_box()
+        return bbox.get_center()
+    else:
+        return cube.get_center()
+
+
+center = None
 def random_explore(tool_name):
     global pcd_signal
+    global center
+
+    episode_signal_pub = rospy.Publisher('/episode_signal', UInt8, queue_size=10)
 
     rate = rospy.Rate(100)
     while not rospy.is_shutdown():
@@ -57,20 +81,11 @@ def random_explore(tool_name):
             if robot.tool_status[tool_name]['status'] == 'ready':
                 robot.take_away_tool(tool_name)
         elif key == 'r':
-            pcd_signal = 1
-            
-            rate = rospy.Rate(100)
-            while not rospy.is_shutdown():
-                if pcd_signal == 0:
-                    break
-
-                rate.sleep()
-
-            print(f"The center of the play_doh is {center}")
+            episode_signal_pub.publish(UInt8(0))
 
             if 'gripper' in tool_name:
                 if 'plane' in tool_name:
-                    random_grip(tool_name, 5, grip_width_min=0.02)
+                    random_grip(tool_name, 5, grip_width_max=0.03, grip_width_min=0.01)
                 else:
                     random_grip(tool_name, 5)
             elif 'press' in tool_name or 'punch' in tool_name:
@@ -80,24 +95,32 @@ def random_explore(tool_name):
             elif 'cutter_planar' in tool_name:
                 random_cut_planar(tool_name)
             elif 'cutter_circular' in tool_name:
+                wait_for_visual()
+                center = get_center(bbox=False)
                 print(f"===== Circular Cut: {center} =====")
                 cut_circular(robot, center[:2])
             elif 'pusher' in tool_name:
+                wait_for_visual()
+                center = get_center(bbox=False)
                 print(f"===== Push: {center} =====")
                 push(robot, center[:2])
+                wait_for_visual()
+                center = get_center(bbox=False)
             elif 'spatula_small' in tool_name:
-                params = [*center[:2], 0.41, -0.29]
+                params = [*center[:2], 0.395, -0.29]
                 print(f"===== Pick and Place: {params} =====")
                 pick_and_place_skin(robot, params, 0.005)
             elif 'spatula_large' in tool_name:
-                params = [*center[:2], 0.41, -0.29]
+                params = [0.5, -0.3, 0.395, -0.29]
                 print(f"===== Pick and Place: {params} =====")
-                pick_and_place_filling(robot, params, 0.01)
+                pick_and_place_filling(robot, params, 0.015)
             elif 'hook' in tool_name:
                 print(f"===== Hook =====")
                 hook(robot)
             else:
                 raise NotImplementedError
+
+            episode_signal_pub.publish(UInt8(1))
         elif key == 'e':
             if robot.tool_status[tool_name]['status'] == 'using':
                 print(f"===== putting back {tool_name} =====")
@@ -110,19 +133,27 @@ def random_explore(tool_name):
         rate.sleep()
 
 
-def random_grip(tool_name, n_grips, grip_width_max=0.03, grip_width_min=0.01):
+def random_grip(tool_name, n_grips, grip_width_max=0.025, grip_width_min=0.005):
     for i in range(n_grips):
+        wait_for_visual()
+        center = get_center(bbox=False)
+        # print(f"The center of the play_doh is {center}")
+
         dist_to_center = np.random.uniform(*tool_params[tool_name]['dist_range'])
         rot = np.random.uniform(*tool_params[tool_name]['rot_range'])
         grip_width = np.random.rand() * (grip_width_max - grip_width_min) + grip_width_min
 
-        params = [*center, dist_to_center, rot, grip_width]
+        params = [center[0], center[1], dist_to_center, rot, grip_width]
         print(f"===== Grip {i+1}: {params} =====")
         grip(robot, params)
 
 
 def random_press(tool_name, n_presses):
     for i in range(n_presses):
+        wait_for_visual()
+        center = get_center(bbox=False)
+        # print(f"The center of the play_doh is {center}")
+
         x_noise = tool_params[tool_name]['x_noise'] * (np.random.rand() * 2 - 1)
         y_noise = tool_params[tool_name]['y_noise'] * (np.random.rand() * 2 - 1)
         z_noise = tool_params[tool_name]['z_noise'] * (np.random.rand() * 2 - 1)
@@ -141,6 +172,10 @@ def random_press(tool_name, n_presses):
 
 def random_roll(tool_name, n_rolls, roll_dist_noise=0.02):
     for i in range(n_rolls):
+        wait_for_visual()
+        center = get_center(bbox=False)
+        # print(f"The center of the play_doh is {center}")
+
         x_noise = tool_params[tool_name]['x_noise'] * (np.random.rand() * 2 - 1)
         y_noise = tool_params[tool_name]['y_noise'] * (np.random.rand() * 2 - 1)
         z_noise = tool_params[tool_name]['z_noise'] * (np.random.rand() * 2 - 1)
@@ -159,6 +194,10 @@ def random_roll(tool_name, n_rolls, roll_dist_noise=0.02):
 
 
 def random_cut_planar(pos_noise=0.01, rot_noise=np.pi/4):
+    wait_for_visual()
+    center = get_center(bbox=False)
+    # print(f"The center of the play_doh is {center}")
+
     cut_x = center[0] + pos_noise * (np.random.rand() * 2 - 1)
     cut_y = center[1] + pos_noise * (np.random.rand() * 2 - 1)
     cut_rot = np.pi / 4 + rot_noise * np.random.rand()

@@ -18,7 +18,7 @@ with open(os.path.join(cd, '..', 'env', 'camera_pose_world.yml'), 'r') as f:
 depth_optical_frame_pose = [0, 0, 0, 0.5, -0.5, 0.5, -0.5]
 
 
-def get_cube(pcd_msgs, target_color='blue', visualize=False):
+def get_cube(pcd_msgs, target_color='white', visualize=False):
     pcd_all = o3d.geometry.PointCloud()
     for i in range(len(pcd_msgs)):
         cloud_rec = ros_numpy.point_cloud2.pointcloud2_to_array(pcd_msgs[i])
@@ -36,7 +36,8 @@ def get_cube(pcd_msgs, target_color='blue', visualize=False):
         # xyz filter
         x_filter = (points.T[0] > 0.4 - 0.1) & (points.T[0] < 0.4 + 0.1)
         y_filter = (points.T[1] > -0.1 - 0.1) & (points.T[1] < -0.1 + 0.1)
-        z_filter = (points.T[2] > 0 + 0.005) & (points.T[2] < 0 + 0.07) # or 0.005
+        # TODO: Tune the numbers
+        z_filter = (points.T[2] > 0 + 0.01) & (points.T[2] < 0 + 0.07) # or 0.005
         points = points[x_filter & y_filter & z_filter]
         cloud_rgb = cloud_rgb[x_filter & y_filter & z_filter, 1:]
         
@@ -52,9 +53,10 @@ def get_cube(pcd_msgs, target_color='blue', visualize=False):
     # color filter
     pcd_colors = np.asarray(pcd_all.colors)
     if target_color == 'blue':
-        cube_label = np.where(np.logical_and(pcd_colors[:, 0] < 0.2, pcd_colors[:, 2] > 0.2))
+        cube_label = np.where((pcd_colors[:, 0] < 0.2) & (pcd_colors[:, 2] > 0.2))
     elif target_color == 'white':
-        cube_label = np.where((pcd_colors[:, 0] > 0.6) & (pcd_colors[:, 1] > 0.4))
+        # TODO: Tune the numbers
+        cube_label = np.where((pcd_colors[:, 0] > 0.1) & (pcd_colors[:, 1] > 0.1))
     else:
         raise NotImplementedError
     
@@ -63,7 +65,7 @@ def get_cube(pcd_msgs, target_color='blue', visualize=False):
 
     cube = cube.voxel_down_sample(voxel_size=0.001)
 
-    cl, inlier_ind_cube_stat = cube.remove_statistical_outlier(nb_neighbors=50, std_ratio=1.5)
+    cl, inlier_ind_cube_stat = cube.remove_statistical_outlier(nb_neighbors=100, std_ratio=1.5)
     cube = cube.select_by_index(inlier_ind_cube_stat)
     
     if visualize:

@@ -24,7 +24,6 @@ cube = None
 def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
     global pcd_signal
     global cube
-    global center
 
     if pcd_signal == 1:
         pcd_msgs = [cam1_msg, cam2_msg, cam3_msg, cam4_msg]
@@ -74,55 +73,59 @@ def get_cut_params(target_volume=5e-5, visualize=False):
 def make_dumpling(debug=True):
     global pcd_signal
 
-    # for key, value in robot.tool_status.items():
-    #     if value['status'] == 'using':
-    #         print(f"===== putting back {key} =====")
-    #         robot.put_back_tool(key)
-    #         break
+    episode_signal_pub = rospy.Publisher('/episode_signal', UInt8, queue_size=10)
 
-    # print(f"===== Step 1: Cut the dough to the right volumes =====")
-    # robot.take_away_tool('cutter_planar')
-    # wait_for_visual()
-    # params = get_cut_params()
-    # print(f"===== Cut params: {params} =====")
-    # cut_planar(robot, params, push_y=0.2)
+    for key, value in robot.tool_status.items():
+        if value['status'] == 'using':
+            print(f"===== putting back {key} =====")
+            robot.put_back_tool(key)
+            break
+
+    episode_signal_pub.publish(UInt8(0))
+
+    print(f"===== Step 1: Cut the dough to the right volumes =====")
+    robot.take_away_tool('cutter_planar')
+    wait_for_visual()
+    params = get_cut_params()
+    print(f"===== Cut params: {params} =====")
+    cut_planar(robot, params, push_y=0.2)
     
-    # robot.put_back_tool('cutter_planar')
+    robot.put_back_tool('cutter_planar')
 
-    # print(f"===== Step 2: grip the dough to a cube =====")
-    # robot.take_away_tool('gripper_sym_plane')
-    # wait_for_visual()
-    # center = get_center()
-    # param_seq = [[center[0], center[1], 0, np.pi/4, 0.01], [center[0], center[1], 0, -np.pi/4, 0.01]]
-    # for params in param_seq:
-    #     grip(robot, params)
+    print(f"===== Step 2: grip the dough to a cube =====")
+    robot.take_away_tool('gripper_sym_plane')
+    wait_for_visual()
+    center = get_center()
+    param_seq = [[center[0], center[1], 0, np.pi/4, 0.01], [center[0], center[1], 0, -np.pi/4, 0.01]]
+    for params in param_seq:
+        grip(robot, params)
 
-    # robot.put_back_tool('gripper_sym_plane')
+    robot.put_back_tool('gripper_sym_plane')
 
-    # print(f"===== Step 3: press the dough to a flat cube =====")
-    # robot.take_away_tool('press_square')
-    # wait_for_visual()
-    # center = get_center()
-    # param_seq = [[center[0], center[1], 0.069 + 0.1034 + 0.01, 0]]
-    # for params in param_seq:
-    #     press(robot, params)
+    print(f"===== Step 3: press the dough to a flat cube =====")
+    robot.take_away_tool('press_square')
+    wait_for_visual()
+    center = get_center()
+    param_seq = [[center[0], center[1], 0.069 + 0.1034 + 0.01, 0]]
+    for params in param_seq:
+        press(robot, params)
 
-    # robot.put_back_tool('press_square')
+    robot.put_back_tool('press_square')
 
-    # print(f"===== Step 4: roll the dough to a flat skin =====")
-    # robot.take_away_tool('roller_large')
-    # wait_for_visual()
-    # center = get_center(bbox=False)
-    # param_seq = [
-    #     [center[0], center[1], 0.089 + 0.1034 + 0.015, -np.pi / 4, -0.04],
-    #     [center[0], center[1], 0.089 + 0.1034 + 0.015, np.pi / 4, -0.04],
-    #     [center[0], center[1], 0.089 + 0.1034 + 0.015, -np.pi / 4, 0.04],
-    #     [center[0], center[1], 0.089 + 0.1034 + 0.015, np.pi / 4, 0.04]
-    # ]
-    # for params in param_seq:
-    #     roll(robot, params)
+    print(f"===== Step 4: roll the dough to a flat skin =====")
+    robot.take_away_tool('roller_large')
+    wait_for_visual()
+    center = get_center(bbox=False)
+    param_seq = [
+        [center[0], center[1], 0.089 + 0.1034 + 0.015, -np.pi / 4, -0.04],
+        [center[0], center[1], 0.089 + 0.1034 + 0.015, np.pi / 4, -0.04],
+        [center[0], center[1], 0.089 + 0.1034 + 0.015, -np.pi / 4, 0.04],
+        [center[0], center[1], 0.089 + 0.1034 + 0.015, np.pi / 4, 0.04]
+    ]
+    for params in param_seq:
+        roll(robot, params)
 
-    # robot.put_back_tool('roller_large')
+    robot.put_back_tool('roller_large')
 
     print(f"===== Step 5: cut the dumpling skin =====")
     robot.take_away_tool('cutter_circular')
@@ -157,6 +160,8 @@ def make_dumpling(debug=True):
     robot.take_away_tool('hook')
     hook(robot)
     robot.put_back_tool('hook')
+
+    episode_signal_pub.publish(UInt8(1))
 
 
 def main():

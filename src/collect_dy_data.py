@@ -31,16 +31,17 @@ if len(tool_name) == 0:
     print('No tool is being used!')
     exit()
 
-date = '08-15'
+date = '08-22'
 
 cd = os.path.dirname(os.path.realpath(sys.argv[0]))
 data_path = os.path.join(cd, '..', 'raw_data', f'{tool_name}_{date}')
 os.system('mkdir -p ' + f"{data_path}")
 data_list = sorted(glob.glob(os.path.join(data_path, '*')))
 if len(data_list) == 0:
-    trial = 0
+    episode = 0
 else:
-    trial = int(os.path.basename(data_list[-1]).lstrip('0')) + 1
+    epi_prev = os.path.basename(data_list[-1]).split('_')[-1]
+    episode = int(epi_prev[:-1].lstrip('0') + epi_prev[-1]) + 1
 
 
 pcd_dy_signal = 0
@@ -50,6 +51,19 @@ def action_signal_callback(msg):
         pcd_dy_signal = 1
     if msg.data == 2:
         pcd_dy_signal = 0
+
+
+episode_signal = 0
+seq = 0
+def episode_signal_callback(msg):
+    global episode_signal
+    global episode
+    global seq
+    if episode_signal == 0 and msg.data == 1:
+        episode += 1
+        seq = 0
+
+    episode_signal = msg.data
 
 
 time_start, time_last, time_now, time_delta = 0.0, 0.0, 0.0, 0.1
@@ -63,7 +77,7 @@ def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
     global time_now
     global n_actions
     global action_counted
-    global trial
+    global seq
 
     if pcd_dy_signal == 1:
         action_counted = False
@@ -77,9 +91,9 @@ def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
         time_diff_3 = cam4_msg.header.stamp.to_sec() - time_start - time_now
         
         if time_now == 0.0 or time_now - time_last > time_delta:
-            trial_path = os.path.join(data_path, str(trial).zfill(3))
-            os.system('mkdir -p ' + f"{trial_path}")
-            bag = rosbag.Bag(os.path.join(trial_path, f'{time_now:.3f}.bag'), 'w')
+            seq_path = os.path.join(data_path, f'ep_{str(episode).zfill(3)}', f'seq_{str(seq).zfill(3)}')
+            os.system('mkdir -p ' + f"{seq_path}")
+            bag = rosbag.Bag(os.path.join(seq_path, f'{time_now:.3f}.bag'), 'w')
 
             bag.write('/cam1/depth/color/points', cam1_msg)
             bag.write('/cam2/depth/color/points', cam2_msg)
@@ -94,7 +108,7 @@ def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
 
             bag.close()
 
-            print(f"Trial {trial}: recorded pcd at {round(time_now, 3)} " + \
+            print(f"Ep {episode} Seq {seq}: recorded pcd at {round(time_now, 3)} " + \
                 f"({round(time_diff_1, 3)}, {round(time_diff_2, 3)}, {round(time_diff_3, 3)})...")
             
             time_last = time_now
@@ -106,16 +120,17 @@ def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
 
         if n_actions >= n_actions_max:
             n_actions = 0
-            trial += 1
+            seq += 1
             time_start = 0.0
             time_last = 0.0
             time_now = 0.0
 
 
 def main():
-    rospy.init_node('collect_dy_data', anonymous=True)
+    rospy.init_node("collect_dy_data", anonymous=True)
 
     rospy.Subscriber("/action_signal", UInt8, action_signal_callback)
+    rospy.Subscriber("/episode_signal", UInt8, episode_signal_callback)
     
     tss = ApproximateTimeSynchronizer(
         (Subscriber("/cam1/depth/color/points", PointCloud2), 

@@ -705,7 +705,8 @@ class ManipulatorSystem:
 
         self.set_policy(self.gain_dict['high']['Kx'], self.gain_dict['high']['Kxd'])
         print("=> preplace:")
-        preplace_pos = [place_pos[0], place_pos[1] + 0.18, place_pos[2] - 0.0675]
+        # TODO: Need to tune this number
+        preplace_pos = [place_pos[0], place_pos[1] + 0.1825, place_pos[2] - 0.0675]
         preplace_pose = self.pos_mat_to_pose(preplace_pos, prerotate_rot)
         self.move_to(*preplace_pose, time_to_go=3.0)
 

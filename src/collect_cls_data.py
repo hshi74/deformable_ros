@@ -18,41 +18,42 @@ from timeit import default_timer as timer
 from transforms3d.quaternions import *
 
 
-robot = random_explore.robot
-
-tool_name = ''
-for key, value in robot.tool_status.items():
-    if value['status'] == 'using':
-        tool_name = key
-        print(f'{tool_name} is being used!')
-        break
-
-if len(tool_name) == 0:
-    print('No tool is being used!')
-    exit()
-
-date = '08-15'
-
 fixed_frame = 'panda_link0'
 num_cams = 4
 
+date = '08-22'
+
 cd = os.path.dirname(os.path.realpath(sys.argv[0]))
-image_suffix = os.path.join(f'tool_classifier_raw_image_{date}', tool_name)
-pcd_suffix = os.path.join(f'tool_classifier_raw_pcd_{date}', tool_name)
-image_path = os.path.join(cd, '..', 'raw_data', image_suffix)
-pcd_path = os.path.join(cd, '..', 'raw_data', pcd_suffix)
+tool_status_path = os.path.join(cd, '..', 'env', 'tool_status.yml')
+data_path = os.path.join(cd, '..', 'raw_data', f'classifier_{date}')
 
-os.system('mkdir -p ' + f"{image_path}")
-os.system('mkdir -p ' + f"{pcd_path}")
+os.system('mkdir -p ' + f"{data_path}")
 
-data_list = sorted(glob.glob(os.path.join(image_path, '*')))
+data_list = sorted(glob.glob(os.path.join(data_path, '*')))
 if len(data_list) == 0:
-    trial = 0
+    episode = 0
 else:
-    trial = int(os.path.basename(data_list[-1]).lstrip('0').split('_')[0]) + 1
+    epi_prev = os.path.basename(data_list[-1]).split('_')[-1]
+    episode = int(epi_prev[:-1].lstrip('0') + epi_prev[-1]) + 1
 
-img_done = 0
-pcd_done = 0
+
+def get_tool_name():
+    tool_name = ''
+    
+    with open(tool_status_path, 'r') as f:
+        tool_status = yaml.load(f, Loader=yaml.FullLoader)
+
+    for key, value in tool_status.items():
+        if value['status'] == 'using':
+            tool_name = key
+            break
+
+    if len(tool_name) == 0:
+        print('No tool is being used!')
+        raise ValueError
+
+    return tool_name
+
 
 img_cls_signal = 0
 pcd_cls_signal = 0
@@ -69,27 +70,45 @@ def action_signal_callback(msg):
         pcd_cls_signal = 2
 
 
+episode_signal = 0
+seq = 0
+def episode_signal_callback(msg):
+    global episode_signal
+    global episode
+    global seq
+    if episode_signal == 0 and msg.data == 1:
+        episode += 1
+        seq = 0
+
+    episode_signal = msg.data
+
+
+img_done = 0
 def image_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
     global img_cls_signal
     global img_done
 
     if img_cls_signal == 1 or img_cls_signal == 2:
+        tool_name = get_tool_name()
+        seq_path = os.path.join(data_path, f'ep_{str(episode).zfill(3)}', 
+            f'seq_{str(seq).zfill(3)}_{tool_name}')
+        os.system('mkdir -p ' + f"{seq_path}")
+
         image_msgs = [cam1_msg, cam2_msg, cam3_msg, cam4_msg]
         br = CvBridge()
         for i in range(num_cams):
             # Convert ROS Image message to OpenCV image
             img_bgr = br.imgmsg_to_cv2(image_msgs[i])
             img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
-            file_name = str(trial).zfill(3)
 
             if img_cls_signal == 1:
-                file_name += '_in'
+                file_name = f'in_cam_{i+1}.png'
             else:
-                file_name += '_out'
+                file_name = f'out_cam_{i+1}.png'
 
-            cv2.imwrite(os.path.join(image_path, file_name + f'_cam_{i+1}.png'), img_rgb)
+            cv2.imwrite(os.path.join(seq_path, file_name), img_rgb)
 
-        print(f"Trial {trial}: recorded {'input' if img_cls_signal == 1 else 'output'} images")
+        print(f"Ep {episode} Seq {seq}: recorded {'input' if img_cls_signal == 1 else 'output'} images")
 
         if img_cls_signal == 2:
             img_done = 1
@@ -97,19 +116,23 @@ def image_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
         img_cls_signal = 0
 
 
+pcd_done = 0
 def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
     global pcd_cls_signal
     global pcd_done
 
     if pcd_cls_signal == 1 or pcd_cls_signal == 2:
-        file_name = str(trial).zfill(3)
-        if pcd_cls_signal == 1:
-            file_name += '_in'
-        else:
-            file_name += '_out'
+        tool_name = get_tool_name()
+        seq_path = os.path.join(data_path, f'ep_{str(episode).zfill(3)}', 
+            f'seq_{str(seq).zfill(3)}_{tool_name}')
+        os.system('mkdir -p ' + f"{seq_path}")
 
-        data_path = os.path.join(pcd_path, f'{file_name}.bag')
-        bag = rosbag.Bag(data_path, 'w')
+        if pcd_cls_signal == 1:
+            file_name = f'in.bag'
+        else:
+            file_name = f'out.bag'
+
+        bag = rosbag.Bag(os.path.join(seq_path, file_name), 'w')
         bag.write('/cam1/depth/color/points', cam1_msg)
         bag.write('/cam2/depth/color/points', cam2_msg)
         bag.write('/cam3/depth/color/points', cam3_msg)
@@ -117,7 +140,7 @@ def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
 
         bag.close()
 
-        print(f"Trial {trial}: recorded {'input' if pcd_cls_signal == 1 else 'output'} pcd")
+        print(f"Ep {episode} Seq {seq}: recorded {'input' if pcd_cls_signal == 1 else 'output'} pcd")
 
         if pcd_cls_signal == 2:
             pcd_done = 1
@@ -129,11 +152,12 @@ def main():
     global cls_signal
     global img_done
     global pcd_done
-    global trial
+    global seq
 
-    rospy.init_node('collect_cls_data', anonymous=True)
+    rospy.init_node("collect_cls_data", anonymous=True)
     rospy.Subscriber("/action_signal", UInt8, action_signal_callback)
-    
+    rospy.Subscriber("/episode_signal", UInt8, episode_signal_callback)
+
     tss = ApproximateTimeSynchronizer(
         (Subscriber("/cam1/color/image_raw", Image), 
         Subscriber("/cam2/color/image_raw", Image), 
@@ -181,7 +205,7 @@ def main():
     rate = rospy.Rate(100)
     while not rospy.is_shutdown():
         if img_done == 1 and pcd_done == 1:
-            trial += 1
+            seq += 1
             img_done = 0
             pcd_done = 0
 
