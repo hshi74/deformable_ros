@@ -35,16 +35,23 @@ def path_callback(msg):
         data_path_signal = 1
         print(f"[INFO] ROS data path: {data_path}")
 
+
 param_seq = None
 def param_seq_callback(msg):
     global param_seq
     # first number is n_actions
     param_seq = msg.data
 
+
+command_str_signal = 0
 command_str = ''
 def command_callback(msg):
     global command_str
-    command_str = msg.data
+    global command_str_signal
+    if command_str != msg.data:
+        command_str = msg.data
+        command_str_signal = 1
+        print(f"[INFO] Command: {command_str}")
 
 
 pcd_signal = 0
@@ -144,43 +151,46 @@ def run(tool_name, param_seq):
 def react():
     global param_seq
     global command_str
+    global command_str_signal
     global data_path_signal
     global pcd_signal
     global img_signal
 
     command_fb_pub = rospy.Publisher('/command_feedback', UInt8, queue_size=10)
     
-    rate = rospy.Rate(1)
+    rate = rospy.Rate(100)
     while not rospy.is_shutdown():
-        if len(command_str) == 0: continue
+        if command_str_signal == 0: 
+            continue
 
         command_list = command_str.split('.')
-        command = command_list[0]
+        command_idx = command_list[0]
+        command = command_list[1]
 
         if command == 'run':
-            if len(command_list) > 1: 
-                tool_name = command_list[1]
+            if len(command_list) > 2: 
+                tool_name = command_list[2]
             else:
                 raise ValueError
 
-            if robot.tool_status[tool_name] == 'ready':
-                for tool, status in robot.tool_status.items():
-                    if status == 'using':
-                        print(f"========== Putting back {tool} ==========")
-                        robot.put_back_tool(tool)
+            if robot.tool_status[tool_name]['status'] == 'ready':
+                for key, value in robot.tool_status.items():
+                    if value['status'] == 'using':
+                        print(f"========== Putting back {key} ==========")
+                        robot.put_back_tool(key)
                         break
         
                 print(f"========== Taking away {tool_name} ==========")
                 robot.take_away_tool(tool_name)
 
             if param_seq is not None:
-                command_fb_pub.publish(UInt8(1))
                 run(tool_name, param_seq)
                 param_seq = None
+                command_fb_pub.publish(UInt8(1))
 
         elif command == 'shoot':
-            if len(command_list) > 1: 
-                data_format_str = command_list[1]
+            if len(command_list) > 2: 
+                data_format_str = command_list[2]
             else:
                 raise ValueError
 
@@ -195,16 +205,17 @@ def react():
                 img_signal = 1
 
         elif command == 'end':
-            for tool, status in robot.tool_status.items():
-                if status == 'using':
-                    print(f"========== Putting back {tool} ==========")
-                    command_fb_pub.publish(UInt8(1))
-                    robot.put_back_tool(tool)
+            for key, value in robot.tool_status.items():
+                if value['status'] == 'using':
+                    print(f"========== Putting back {key} ==========")
+                    # command_fb_pub.publish(UInt8(1))
+                    robot.put_back_tool(key)
                     break
 
         else:
             print('========== ERROR: Unrecoganized command! ==========')
 
+        command_str_signal = 0
         rate.sleep()
 
 

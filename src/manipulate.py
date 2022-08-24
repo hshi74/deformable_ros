@@ -716,7 +716,7 @@ class ManipulatorSystem:
         # rotate_pose = self.pos_mat_to_pose(rotate_pos, rotate_rot)
         # self.move_to(*rotate_pose, time_to_go=6.0)
 
-        self.close_gripper(0.03, blocking=False, grip_params=(0.01, 50))
+        self.close_gripper(0.035, blocking=False, grip_params=(0.01, 50))
 
         print("=> place:")
         down_pos = [place_pos[0], place_pos[1] + 0.1, place_pos[2] - 0.05]

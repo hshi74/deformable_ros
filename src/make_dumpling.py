@@ -137,11 +137,11 @@ def make_dumpling(debug=True):
     robot.put_back_tool('cutter_circular')
 
     print(f"===== Step 6: push away undesired dough =====")
-    robot.take_away_tool('cutter_planar')
+    robot.take_away_tool('pusher')
     # wait_for_visual()
     # center = get_center(bbox=False)
     push(robot, center[:2])
-    robot.put_back_tool('cutter_planar')
+    robot.put_back_tool('pusher')
 
     print(f"===== Step 7: pick and place the dumping skin =====")
     robot.take_away_tool('spatula_small')

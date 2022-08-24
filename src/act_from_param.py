@@ -47,7 +47,7 @@ def press(robot, params, prepress_dh=0.1):
     robot.press(press_pos, press_rot, prepress_dh)
 
 
-def roll(robot, params, preroll_dh=0.07):
+def roll(robot, params, preroll_dh=0.1):
     roll_x, roll_y, roll_z, rot, roll_dist = params
     start_pos = [roll_x, roll_y, roll_z]
 
@@ -63,17 +63,17 @@ def roll(robot, params, preroll_dh=0.07):
     robot.roll(start_pos, roll_rot, end_pos, preroll_dh)
 
 
-def cut_planar(robot, params, cut_h=0.215, precut_dh=0.07, push_y=0.03):
+def cut_planar(robot, params, cut_h=0.215, precut_dh=0.1, push_y=0.03):
     cut_x, cut_y, cut_rot = params
     robot.cut_planar([cut_x, cut_y, cut_h], [0.0, 0.0, cut_rot], precut_dh, push_y=push_y)
 
 
-def cut_circular(robot, params, cut_h=0.18, precut_dh=0.07):
+def cut_circular(robot, params, cut_h=0.18, precut_dh=0.1):
     cut_x, cut_y = params
     robot.cut_circular([cut_x, cut_y, cut_h], [0.0, 0.0, 0.0], precut_dh)
 
 
-def push(robot, params, push_h=0.22, prepush_dh=0.07):
+def push(robot, params, push_h=0.22, prepush_dh=0.1):
     push_x, push_y = params
     robot.push([push_x, push_y, push_h], prepush_dh)
 
