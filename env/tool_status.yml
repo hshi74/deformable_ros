@@ -12,7 +12,7 @@ gripper_sym_plane:
   status: ready
 gripper_sym_rod:
   loc: l0-2
-  status: ready
+  status: using
 hook:
   loc: f2-high
   status: ready

@@ -133,7 +133,7 @@ def random_explore(tool_name):
         rate.sleep()
 
 
-def random_grip(tool_name, n_grips, grip_width_max=0.025, grip_width_min=0.005):
+def random_grip(tool_name, n_grips, grip_width_max=0.025, grip_width_min=0.001):
     for i in range(n_grips):
         wait_for_visual()
         center = get_center(bbox=False)

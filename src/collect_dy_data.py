@@ -31,10 +31,8 @@ if len(tool_name) == 0:
     print('No tool is being used!')
     exit()
 
-date = '08-22'
-
 cd = os.path.dirname(os.path.realpath(sys.argv[0]))
-data_path = os.path.join(cd, '..', 'raw_data', f'{tool_name}_{date}')
+data_path = os.path.join(cd, '..', 'raw_data', f'{tool_name}_robot_v4')
 os.system('mkdir -p ' + f"{data_path}")
 data_list = sorted(glob.glob(os.path.join(data_path, '*')))
 if len(data_list) == 0:

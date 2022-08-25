@@ -469,7 +469,7 @@ class ManipulatorSystem:
         print("=> pregrip:")
         self.open_gripper()
         pregrip_pose = self.pos_rz_to_pose(grip_params, grip_h + pregrip_dh)
-        self.move_to(*pregrip_pose)
+        self.move_to(*pregrip_pose, time_to_go=3.0)
 
         # Lower
         print("=> grip:")

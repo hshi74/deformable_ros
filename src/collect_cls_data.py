@@ -21,7 +21,7 @@ from transforms3d.quaternions import *
 fixed_frame = 'panda_link0'
 num_cams = 4
 
-date = '08-22'
+date = '08-24'
 
 cd = os.path.dirname(os.path.realpath(sys.argv[0]))
 tool_status_path = os.path.join(cd, '..', 'env', 'tool_status.yml')
@@ -71,14 +71,14 @@ def action_signal_callback(msg):
 
 
 episode_signal = 0
-seq = 0
+episode_added = False
 def episode_signal_callback(msg):
     global episode_signal
     global episode
-    global seq
+    global episode_added
     if episode_signal == 0 and msg.data == 1:
         episode += 1
-        seq = 0
+        episode_added = True
 
     episode_signal = msg.data
 
@@ -148,11 +148,13 @@ def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
         pcd_cls_signal = 0
 
 
+seq = 0
 def main():
     global cls_signal
     global img_done
     global pcd_done
     global seq
+    global episode_added
 
     rospy.init_node("collect_cls_data", anonymous=True)
     rospy.Subscriber("/action_signal", UInt8, action_signal_callback)
@@ -205,7 +207,11 @@ def main():
     rate = rospy.Rate(100)
     while not rospy.is_shutdown():
         if img_done == 1 and pcd_done == 1:
-            seq += 1
+            if episode_added:
+                seq = 0
+                episode_added = False
+            else:
+                seq += 1
             img_done = 0
             pcd_done = 0
 

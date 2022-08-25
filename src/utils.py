@@ -1,5 +1,5 @@
 
-from cv2 import invert
+import cv2 as cv
 import numpy as np
 import open3d as o3d
 import os
@@ -51,14 +51,15 @@ def get_cube(pcd_msgs, target_color='white', visualize=False):
         o3d.visualization.draw_geometries([pcd_all])
     
     # color filter
-    pcd_colors = np.asarray(pcd_all.colors)
-    if target_color == 'blue':
-        cube_label = np.where((pcd_colors[:, 0] < 0.2) & (pcd_colors[:, 2] > 0.2))
-    elif target_color == 'white':
-        # TODO: Tune the numbers
-        cube_label = np.where((pcd_colors[:, 0] > 0.1) & (pcd_colors[:, 1] > 0.1))
-    else:
-        raise NotImplementedError
+    pcd_colors = np.asarray(pcd_all.colors, dtype=np.float32)
+    # bgr
+    pcd_rgb = pcd_colors[None, :, :]
+
+    pcd_hsv = cv.cvtColor(pcd_rgb, cv.COLOR_RGB2HSV)
+    hsv_lower = np.array([0, 0, 0])
+    hsv_upper = np.array([120, 255, 255])
+    mask = cv.inRange(pcd_hsv, hsv_lower, hsv_upper)
+    cube_label = np.where(mask[0] == 255)
     
     cube = pcd_all.select_by_index(cube_label[0])
     rest = pcd_all.select_by_index(cube_label[0], invert=True)
