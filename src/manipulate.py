@@ -43,7 +43,7 @@ class ManipulatorSystem:
                 'Kxd': torch.tensor([35., 35., 35., 14., 14., 14.])
             },
             'high': {
-                'Kx': torch.tensor([2400., 2400., 2400., 640., 640., 640.]),
+                'Kx': torch.tensor([2400., 2400., 2400., 320., 320., 320.]),
                 'Kxd': torch.tensor([35., 35., 35., 14., 14., 14.])
             }
         }
@@ -61,7 +61,7 @@ class ManipulatorSystem:
 
         # Reset to rest pose
         # self.rest_pose = self.pos_rz_to_pose((0.437, 0.0, 0), 0.4) # for robocraft
-        self.rest_pose = self.pos_rz_to_pose((0.4, -0.1, np.pi / 4), 0.4) # for robocook
+        self.rest_pose = self.pos_rz_to_pose((0.4, -0.1, 0.0), 0.4) # for robocook
         self.rest_pos = self.rest_pose[0]
         self.rest_quat = self.rest_pose[1]
 
@@ -469,7 +469,7 @@ class ManipulatorSystem:
         print("=> pregrip:")
         self.open_gripper()
         pregrip_pose = self.pos_rz_to_pose(grip_params, grip_h + pregrip_dh)
-        self.move_to(*pregrip_pose, time_to_go=3.0)
+        self.move_to(*pregrip_pose, time_to_go=2.0)
 
         # Lower
         print("=> grip:")
@@ -493,7 +493,7 @@ class ManipulatorSystem:
         self.publish(2)
 
         print("=> back to pregrip:")
-        self.move_to(*pregrip_pose)
+        self.move_to(*pregrip_pose, time_to_go=1.0)
 
         self.reset()
         self.publish(3)

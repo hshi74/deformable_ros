@@ -21,7 +21,7 @@ from utils import get_cube
 
 robot = ManipulatorSystem()
 
-with open('/scr/hxu/projects/RoboCook/config/tool_plan_params.yml', 'r') as f:
+with open('/scr/hxu/projects/robocook/config/tool_plan_params.yml', 'r') as f:
     tool_params = yaml.load(f, Loader=yaml.FullLoader)
 
 
@@ -85,7 +85,7 @@ def random_explore(tool_name):
 
             if 'gripper' in tool_name:
                 if 'plane' in tool_name:
-                    random_grip(tool_name, 5, grip_width_max=0.03, grip_width_min=0.01)
+                    random_grip(tool_name, 5, grip_width_max=0.02, grip_width_min=0.001)
                 else:
                     random_grip(tool_name, 5)
             elif 'press' in tool_name or 'punch' in tool_name:
