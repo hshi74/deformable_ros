@@ -9,7 +9,7 @@ gripper_asym:
   status: ready
 gripper_sym_plane:
   loc: l0-1
-  status: using
+  status: ready
 gripper_sym_rod:
   loc: l0-2
   status: ready

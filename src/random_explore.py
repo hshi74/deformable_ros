@@ -85,7 +85,7 @@ def random_explore(tool_name):
 
             if 'gripper' in tool_name:
                 if 'plane' in tool_name:
-                    random_grip(tool_name, 5, grip_width_max=0.02, grip_width_min=0.001)
+                    random_grip(tool_name, 5, grip_width_max=0.02, grip_width_min=0.005)
                 else:
                     random_grip(tool_name, 5)
             elif 'press' in tool_name or 'punch' in tool_name:
@@ -158,7 +158,7 @@ def random_press(tool_name, n_presses):
         y_noise = tool_params[tool_name]['y_noise'] * (np.random.rand() * 2 - 1)
         z_noise = tool_params[tool_name]['z_noise'] * (np.random.rand() * 2 - 1)
         press_pos = [center[0] + x_noise, center[1] + y_noise, 
-            0.069 + 0.1034 + center[2] + z_noise]
+            0.069 + 0.1034 + center[2] + z_noise + 0.003]
 
         if 'circle' in tool_name:
             rot = 0
@@ -180,7 +180,7 @@ def random_roll(tool_name, n_rolls, roll_dist_noise=0.02):
         y_noise = tool_params[tool_name]['y_noise'] * (np.random.rand() * 2 - 1)
         z_noise = tool_params[tool_name]['z_noise'] * (np.random.rand() * 2 - 1)
         press_pos = [center[0] + x_noise, center[1] + y_noise, 
-            0.089 + 0.1034 + center[2] + z_noise]
+            0.089 + 0.1034 + center[2] + z_noise + 0.005] 
 
         rot = np.random.uniform(*tool_params[tool_name]['rot_range'])
 

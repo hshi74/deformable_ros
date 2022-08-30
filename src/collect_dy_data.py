@@ -1,4 +1,5 @@
 import glob
+from json import tool
 import numpy as np
 import os
 import random_explore
@@ -20,26 +21,35 @@ from transforms3d.quaternions import *
 
 robot = random_explore.robot
 
-tool_name = ''
-for key, value in robot.tool_status.items():
-    if value['status'] == 'using':
-        tool_name = key
-        print(f'{tool_name} is being used!')
-        break
-
-if len(tool_name) == 0:
-    print('No tool is being used!')
-    exit()
-
 cd = os.path.dirname(os.path.realpath(sys.argv[0]))
-data_path = os.path.join(cd, '..', 'raw_data', f'{tool_name}_robot_v4')
-os.system('mkdir -p ' + f"{data_path}")
-data_list = sorted(glob.glob(os.path.join(data_path, '*')))
-if len(data_list) == 0:
-    episode = 0
-else:
-    epi_prev = os.path.basename(data_list[-1]).split('_')[-1]
-    episode = int(epi_prev[:-1].lstrip('0') + epi_prev[-1]) + 1
+
+episode = 0
+tool_name = ''
+data_path = ''
+def get_tool_name():
+    global episode
+    global data_path
+    global tool_name
+
+    tool_name_cur = ''
+    for key, value in robot.tool_status.items():
+        if value['status'] == 'using':
+            tool_name_cur = key
+            break
+
+    if len(tool_name_cur) > 0 and tool_name != tool_name_cur:
+        tool_name = tool_name_cur
+        print(f'{tool_name} is being used!')
+        
+        data_path = os.path.join(cd, '..', 'raw_data', f'{tool_name}_robot_v4')
+        # hdd_str = '/media/hxu/Game\ Drive\ PS4/robocook/raw_data'
+        # data_path = os.path.join(hdd_str, f'{tool_name}_robot_v4')
+
+        os.system('mkdir -p ' + f"{data_path}")
+        data_list = sorted(glob.glob(os.path.join(data_path, '*')))
+        if len(data_list) > 0:
+            epi_prev = os.path.basename(data_list[-1]).split('_')[-1]
+            episode = int(epi_prev[:-1].lstrip('0') + epi_prev[-1]) + 1
 
 
 pcd_dy_signal = 0
@@ -91,6 +101,7 @@ def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
         if time_now == 0.0 or time_now - time_last > time_delta:
             seq_path = os.path.join(data_path, f'ep_{str(episode).zfill(3)}', f'seq_{str(seq).zfill(3)}')
             os.system('mkdir -p ' + f"{seq_path}")
+            # bag = rosbag.Bag(os.path.join(seq_path.replace('\\', ''), f'{time_now:.3f}.bag'), 'w')
             bag = rosbag.Bag(os.path.join(seq_path, f'{time_now:.3f}.bag'), 'w')
 
             bag.write('/cam1/depth/color/points', cam1_msg)
@@ -166,6 +177,7 @@ def main():
 
     rate = rospy.Rate(100)
     while not rospy.is_shutdown():
+        get_tool_name()
         rate.sleep()
 
 

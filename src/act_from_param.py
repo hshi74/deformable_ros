@@ -47,7 +47,7 @@ def press(robot, params, prepress_dh=0.1):
     robot.press(press_pos, press_rot, prepress_dh)
 
 
-def roll(robot, params, preroll_dh=0.1):
+def roll(robot, params, preroll_dh=0.12):
     roll_x, roll_y, roll_z, rot, roll_dist = params
     start_pos = [roll_x, roll_y, roll_z]
 
@@ -86,7 +86,7 @@ def pick_and_place_skin(robot, params, grip_width, pick_h=0.18, prepick_dh=0.2,
 
 
 def pick_and_place_filling(robot, params, grip_width, pick_h=0.18, prepick_dh=0.2, 
-    place_h=0.2175, preplace_dh=0.05):
+    place_h=0.22, preplace_dh=0.05):
     pick_x, pick_y, place_x, place_y = params
     robot.pick_and_place_filling([pick_x, pick_y, pick_h], [0, 0, -np.pi / 4], prepick_dh, 
         [place_x, place_y, place_h], [0, 0, -np.pi / 4], preplace_dh, grip_width)

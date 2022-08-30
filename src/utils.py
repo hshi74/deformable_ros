@@ -37,7 +37,7 @@ def get_cube(pcd_msgs, target_color='white', visualize=False):
         x_filter = (points.T[0] > 0.4 - 0.1) & (points.T[0] < 0.4 + 0.1)
         y_filter = (points.T[1] > -0.1 - 0.1) & (points.T[1] < -0.1 + 0.1)
         # TODO: Tune the numbers
-        z_filter = (points.T[2] > 0 + 0.01) & (points.T[2] < 0 + 0.07) # or 0.005
+        z_filter = (points.T[2] > 0 + 0.005) & (points.T[2] < 0 + 0.07) # or 0.005
         points = points[x_filter & y_filter & z_filter]
         cloud_rgb = cloud_rgb[x_filter & y_filter & z_filter, 1:]
         

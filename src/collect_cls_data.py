@@ -26,9 +26,12 @@ date = '08-24'
 cd = os.path.dirname(os.path.realpath(sys.argv[0]))
 tool_status_path = os.path.join(cd, '..', 'env', 'tool_status.yml')
 data_path = os.path.join(cd, '..', 'raw_data', f'classifier_{date}')
+# hdd_str = '/media/hxu/Game\ Drive\ PS4/robocook/raw_data'
+# data_path = os.path.join(hdd_str, f'classifier_{date}')
 
 os.system('mkdir -p ' + f"{data_path}")
 
+# data_list = sorted(glob.glob(os.path.join(data_path.replace('\\', ''), '*')))
 data_list = sorted(glob.glob(os.path.join(data_path, '*')))
 if len(data_list) == 0:
     episode = 0
@@ -102,6 +105,7 @@ def image_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
             else:
                 file_name = f'out_cam_{i+1}.png'
 
+            # cv2.imwrite(os.path.join(seq_path.replace('\\', ''), file_name), img_rgb)
             cv2.imwrite(os.path.join(seq_path, file_name), img_rgb)
 
         print(f"Ep {episode} Seq {seq}: recorded {'input' if img_cls_signal == 1 else 'output'} images")
@@ -128,6 +132,7 @@ def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
         else:
             file_name = f'out.bag'
 
+        # bag = rosbag.Bag(os.path.join(seq_path.replace('\\', ''), file_name), 'w')
         bag = rosbag.Bag(os.path.join(seq_path, file_name), 'w')
         bag.write('/cam1/depth/color/points', cam1_msg)
         bag.write('/cam2/depth/color/points', cam2_msg)
@@ -203,8 +208,9 @@ def main():
     rate = rospy.Rate(100)
     while not rospy.is_shutdown():
         if img_done == 1 and pcd_done == 1:
-            episode += (seq + 1) // 5
-            seq = (seq + 1) % 5
+            episode_len = 5 if 'gripper' in get_tool_name() else 3
+            episode += (seq + 1) // episode_len
+            seq = (seq + 1) % episode_len
             img_done = 0
             pcd_done = 0
 

@@ -520,7 +520,7 @@ class ManipulatorSystem:
         self.publish(2)
 
         print("=> back to prepress:")
-        self.move_to(*prepress_pose)
+        self.move_to(*prepress_pose, time_to_go=1.0)
 
         self.reset()
         self.publish(3)
@@ -542,17 +542,17 @@ class ManipulatorSystem:
         # Press
         print("=> press:")
         press_pose = self.pos_rot_to_pose(start_pos, roll_rot)
-        self.move_to(*press_pose)
+        self.move_to(*press_pose, time_to_go=1.5)
 
         # Spread
         print("=> spread:")
         spread_pose = self.pos_rot_to_pose(end_pos, roll_rot)
-        self.move_to(*spread_pose)
+        self.move_to(*spread_pose, time_to_go=1.5)
 
         self.publish(2)
         
         print("=> back to preroll:")
-        self.move_to(*preroll_pose)
+        self.move_to(*preroll_pose, time_to_go=1.0)
 
         self.reset()
         self.publish(3)
@@ -706,7 +706,7 @@ class ManipulatorSystem:
         self.set_policy(self.gain_dict['high']['Kx'], self.gain_dict['high']['Kxd'])
         print("=> preplace:")
         # TODO: Need to tune this number
-        preplace_pos = [place_pos[0], place_pos[1] + 0.1825, place_pos[2] - 0.0675]
+        preplace_pos = [place_pos[0], place_pos[1] + 0.185, place_pos[2] - 0.0675]
         preplace_pose = self.pos_mat_to_pose(preplace_pos, prerotate_rot)
         self.move_to(*preplace_pose, time_to_go=3.0)
 

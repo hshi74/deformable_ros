@@ -52,7 +52,7 @@ def get_center(bbox=True):
         return cube.get_center()
 
 
-def get_cut_params(target_volume=5e-5, visualize=False):
+def get_cut_params(target_volume=6e-5, visualize=False):
     bbox = cube.get_axis_aligned_bounding_box()
     
     if visualize:
@@ -117,10 +117,10 @@ def make_dumpling(debug=True):
     wait_for_visual()
     center = get_center(bbox=False)
     param_seq = [
-        [center[0], center[1], 0.089 + 0.1034 + 0.015, -np.pi / 4, -0.04],
-        [center[0], center[1], 0.089 + 0.1034 + 0.015, np.pi / 4, -0.04],
-        [center[0], center[1], 0.089 + 0.1034 + 0.015, -np.pi / 4, 0.04],
-        [center[0], center[1], 0.089 + 0.1034 + 0.015, np.pi / 4, 0.04]
+        [center[0], center[1], 0.089 + 0.1034 + 0.0125, -np.pi / 4, -0.04],
+        [center[0], center[1], 0.089 + 0.1034 + 0.0125, np.pi / 4, -0.04],
+        [center[0], center[1], 0.089 + 0.1034 + 0.0125, -np.pi / 4, 0.04],
+        [center[0], center[1], 0.089 + 0.1034 + 0.0125, np.pi / 4, 0.04]
     ]
     for params in param_seq:
         roll(robot, params)
