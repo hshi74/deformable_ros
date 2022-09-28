@@ -15,7 +15,7 @@ gripper_sym_rod:
   status: ready
 hook:
   loc: f2-high
-  status: using
+  status: ready
 press_circle:
   loc: f0-mid
   status: ready
