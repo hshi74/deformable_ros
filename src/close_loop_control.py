@@ -21,6 +21,7 @@ from std_msgs.msg import UInt8, Float32, String
 from timeit import default_timer as timer
 from transforms3d.axangles import axangle2mat
 from transforms3d.quaternions import *
+from utils import get_cube
 
 
 robot = ManipulatorSystem()
@@ -55,22 +56,25 @@ def command_callback(msg):
 
 
 pcd_signal = 0
+request_center = 0
+center = None
 def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
     global pcd_signal
+    global center
 
     if pcd_signal == 1:
-        bag = rosbag.Bag(os.path.join(data_path, 'pcd.bag'), 'w')
+        bag = rosbag.Bag(data_path + '.bag', 'w')
         bag.write('/cam1/depth/color/points', cam1_msg)
         bag.write('/cam2/depth/color/points', cam2_msg)
         bag.write('/cam3/depth/color/points', cam3_msg)
         bag.write('/cam4/depth/color/points', cam4_msg)
 
         # bag.write('/robot_pose', robot_pose_msg)
-        ee_pose = robot.get_ee_pose()
-        bag.write('/ee_pose', ee_pose)
+        # ee_pose = robot.get_ee_pose()
+        # bag.write('/ee_pose', ee_pose)
 
-        gripper_width = robot.gripper.get_state().width
-        bag.write('/gripper_width', Float32(gripper_width))
+        # gripper_width = robot.gripper.get_state().width
+        # bag.write('/gripper_width', Float32(gripper_width))
 
         bag.close()
 
@@ -82,6 +86,10 @@ def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
         # print(f"Copied pcd at {os.path.basename(data_path)}...")
 
         pcd_signal = 0
+
+        if request_center:
+            cube = get_cube([cam1_msg, cam2_msg, cam3_msg, cam4_msg], target_color='white')
+            center = cube.get_center()
 
 
 img_signal = 0
@@ -96,19 +104,40 @@ def image_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
             img_bgr = br.imgmsg_to_cv2(image_msgs[i])
             img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
 
-            cv2.imwrite(os.path.join(data_path, f'cam_{i+1}.png'), img_rgb)
+            cv2.imwrite(data_path + f'_cam_{i+1}.png', img_rgb)
 
         print(f"[INFO] images written!")
 
         img_signal = 0
 
 
+def wait_for_visual():
+    global pcd_signal
+    global request_center
+
+    pcd_signal = 1
+    rate = rospy.Rate(100)
+    while not rospy.is_shutdown():
+        if center is not None:
+            request_center = 0
+            break
+
+        rate.sleep()
+
+
 def run(tool_name, param_seq):
+    global request_center
+
     if 'gripper' in tool_name:
         param_seq = param_seq.reshape(-1, 5)
         for i in range(len(param_seq)):
-            print(f'===== Grip {i+1}: {param_seq[i]} =====')
-            grip(robot, param_seq[i])
+            param_seq_updated = [*param_seq[i]]
+            if 'plane' in tool_name:
+                param_seq_updated[4] = max(0.004, param_seq_updated[4] - 0.002)
+            else:
+                param_seq_updated[4] = max(0.004, param_seq_updated[4] - 0.002)
+            print(f'===== Grip {i+1}: {param_seq_updated} =====')
+            grip(robot, param_seq_updated)
 
     elif 'press' in tool_name or 'punch' in tool_name:
         if 'circle' in tool_name:
@@ -118,28 +147,44 @@ def run(tool_name, param_seq):
             param_seq = param_seq.reshape(-1, 4)
 
         for i in range(len(param_seq)):
-            print(f'===== Press {i+1}: {param_seq[i]} =====')
-            press(robot, param_seq[i])
+            # to compensate the execution error on z-axis
+            param_seq_updated = [*param_seq[i]]
+            param_seq_updated[2] -= 0.01
+            print(f'===== Press {i+1}: {param_seq_updated} =====')
+            press(robot, param_seq_updated)
 
     elif 'roller' in tool_name:
         param_seq = param_seq.reshape(-1, 5)
         for i in range(len(param_seq)):
-            roll(robot, param_seq[i])
+            param_seq_updated = [*param_seq[i]]
+            param_seq_updated[2] = max(0.2, param_seq_updated[2] - 0.02)
+            print(f'===== Roll {i+1}: {param_seq_updated} =====')
+            roll(robot, param_seq_updated)
 
     elif 'cutter_planar' in tool_name:
-        cut_planar(robot, param_seq)
+        cut_planar(robot, param_seq, push_y=0.2)
 
     elif 'cutter_circular' in tool_name:
-        cut_circular(robot, param_seq)
+        if center is None:
+            request_center = 1
+            wait_for_visual()
+        # this center will be reused for the following actions
+        cut_circular(robot, center[:2])
 
     elif 'pusher' in tool_name:
-        push(robot, param_seq)
+        if center is None:
+            request_center = 1
+            wait_for_visual()
+        push(robot, center[:2])
 
     elif 'spatula_small' in tool_name:
-        pick_and_place_skin(robot, param_seq, 0.005)
+        if center is None:
+            request_center = 1
+            wait_for_visual()
+        pick_and_place_skin(robot, [*center[:2], 0.395, -0.29], 0.005)
 
     elif 'spatula_large' in tool_name:
-        pick_and_place_filling(robot, param_seq, 0.01)
+        pick_and_place_filling(robot, [0.5, -0.3, 0.395, -0.29], 0.015)
 
     elif 'hook' in tool_name:
         hook(robot)
@@ -164,7 +209,7 @@ def react():
             continue
 
         command_list = command_str.split('.')
-        command_idx = command_list[0]
+        command_time = command_list[0]
         command = command_list[1]
 
         if command == 'run':
@@ -183,10 +228,12 @@ def react():
                 print(f"========== Taking away {tool_name} ==========")
                 robot.take_away_tool(tool_name)
 
-            if param_seq is not None:
-                run(tool_name, param_seq)
-                param_seq = None
-                command_fb_pub.publish(UInt8(1))
+            while param_seq is None:
+                continue
+
+            run(tool_name, param_seq)
+            param_seq = None
+            command_fb_pub.publish(UInt8(1))
 
         elif command == 'shoot':
             if len(command_list) > 2: 
@@ -237,7 +284,7 @@ def main():
         Subscriber("/cam3/depth/color/points", PointCloud2), 
         Subscriber("/cam4/depth/color/points", PointCloud2)),
         queue_size=100,
-        slop=0.2
+        slop=0.5
     )
 
     tss.registerCallback(cloud_callback)
