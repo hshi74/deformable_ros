@@ -63,7 +63,7 @@ def roll(robot, params, preroll_dh=0.12):
     robot.roll(start_pos, roll_rot, end_pos, preroll_dh)
 
 
-def cut_planar(robot, params, cut_h=0.215, precut_dh=0.1, push_y=0.03):
+def cut_planar(robot, params, cut_h=0.21, precut_dh=0.1, push_y=0.03):
     cut_x, cut_y, cut_rot = params
     robot.cut_planar([cut_x, cut_y, cut_h], [0.0, 0.0, cut_rot], precut_dh, push_y=push_y)
 
@@ -79,9 +79,11 @@ def push(robot, params, push_h=0.22, prepush_dh=0.1):
 
 
 def pick_and_place_skin(robot, params, grip_width, pick_h=0.18, prepick_dh=0.2, 
-    place_h=0.2175, preplace_dh=0.1):
+    place_h=0.2125, preplace_dh=0.1):
     pick_x, pick_y, place_x, place_y = params
-    robot.pick_and_place_skin([pick_x, pick_y, pick_h], [0, 0, -np.pi / 4], prepick_dh, 
+    # robot.pick_and_place_skin_v1([pick_x, pick_y, pick_h], [0, 0, -np.pi / 4], prepick_dh, 
+    #     [place_x, place_y, place_h], [0, 0, -np.pi / 4], preplace_dh, grip_width)
+    robot.pick_and_place_skin_v2([pick_x, pick_y, pick_h], [0, 0, -np.pi / 4], prepick_dh, 
         [place_x, place_y, place_h], [0, 0, -np.pi / 4], preplace_dh, grip_width)
 
 

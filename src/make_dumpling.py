@@ -14,7 +14,7 @@ from sensor_msgs.msg import PointCloud2
 from std_msgs.msg import UInt8
 from transforms3d.axangles import axangle2mat
 from transforms3d.quaternions import *
-from utils import get_cube
+from utils import get_cube_center
 
 
 robot = ManipulatorSystem()
@@ -27,7 +27,7 @@ def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
 
     if pcd_signal == 1:
         pcd_msgs = [cam1_msg, cam2_msg, cam3_msg, cam4_msg]
-        cube = get_cube(pcd_msgs, target_color='white')
+        cube = get_cube_center(pcd_msgs, target_color='white')
 
         pcd_signal = 0
 
@@ -147,13 +147,13 @@ def make_dumpling(debug=True):
     robot.take_away_tool('spatula_small')
     # wait_for_visual()
     # center = get_center(bbox=False)
-    pick_and_place_skin(robot, [*center[:2], 0.395, -0.29], 0.005)
+    pick_and_place_skin(robot, [*center[:2], 0.393, -0.29], 0.005)
     robot.put_back_tool('spatula_small')
 
     print(f"===== Step 7: pick and place the dumping filling =====")
     robot.take_away_tool('spatula_large')
     # wait_for_visual()
-    pick_and_place_filling(robot, [0.5, -0.3, 0.395, -0.29], 0.015)
+    pick_and_place_filling(robot, [0.5, -0.3, 0.393, -0.29], 0.015)
     robot.put_back_tool('spatula_large')
 
     print(f"===== Step 8: hook and close the dumpling clip =====")

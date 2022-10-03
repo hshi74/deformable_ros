@@ -21,7 +21,7 @@ from std_msgs.msg import UInt8, Float32, String
 from timeit import default_timer as timer
 from transforms3d.axangles import axangle2mat
 from transforms3d.quaternions import *
-from utils import get_cube
+from utils import get_cube_center
 
 
 robot = ManipulatorSystem()
@@ -88,8 +88,8 @@ def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
         pcd_signal = 0
 
         if request_center:
-            cube = get_cube([cam1_msg, cam2_msg, cam3_msg, cam4_msg], target_color='white')
-            center = cube.get_center()
+            center = get_cube_center([cam1_msg, cam2_msg, cam3_msg, cam4_msg], target_color='white')
+            # center = np.mean(np.asarray(cube.points)[:, :2], axis=0)
 
 
 img_signal = 0
@@ -181,10 +181,10 @@ def run(tool_name, param_seq):
         if center is None:
             request_center = 1
             wait_for_visual()
-        pick_and_place_skin(robot, [*center[:2], 0.395, -0.29], 0.005)
+        pick_and_place_skin(robot, [*center[:2], 0.393, -0.29], 0.02)
 
     elif 'spatula_large' in tool_name:
-        pick_and_place_filling(robot, [0.5, -0.3, 0.395, -0.29], 0.015)
+        pick_and_place_filling(robot, [0.5, -0.3, 0.393, -0.29], 0.015)
 
     elif 'hook' in tool_name:
         hook(robot)

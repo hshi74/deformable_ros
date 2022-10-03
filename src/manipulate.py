@@ -473,7 +473,7 @@ class ManipulatorSystem:
 
         # Lower
         print("=> grip:")
-        grip_pose = self.pos_rz_to_pose(grip_params, grip_h)
+        grip_pose = self.pos_rz_to_pose(grip_params, grip_h + 0.003)
         self.move_to(*grip_pose, time_to_go=1.0)
 
         self.publish(1)
@@ -488,10 +488,10 @@ class ManipulatorSystem:
 
         # Release
         self.open_gripper()
-        # Lift to pregrip
 
         self.publish(2)
 
+        # Lift to pregrip
         print("=> back to pregrip:")
         self.move_to(*pregrip_pose, time_to_go=1.0)
 
@@ -642,12 +642,12 @@ class ManipulatorSystem:
         #     [(r+0.04, -0.1), (r+0.04, 0.1), np.pi/4]]
         
         # cut and push vertically, then push horizontally
-        moves = [[(0.005, r+0.04+0.002), (r+0.04, r+0.04), 3*np.pi/4],
-            [(0.01, r+0.04+0.002), (-r-0.015, r+0.04), 3*np.pi/4],
+        moves = [[(0.005, r+0.04+0.001), (r+0.04, r+0.04), 3*np.pi/4],
+            [(0.01, r+0.04+0.001), (-r-0.015, r+0.04), 3*np.pi/4],
             [(-r, r+0.04), (-r, -r-0.02), 4*np.pi/5],
             # [(0.005, -r-0.04-0.0025), (-r-0.015, -r-0.04), 3*np.pi/4],
-            [(-r-0.015, -r-0.04-0.002), (r+0.04, -r-0.04-0.002), 3*np.pi/4],
-            [(r+0.04+0.005, -r-0.1), (r+0.04+0.005, r+0.12), np.pi/4]]
+            [(-r-0.015, -r-0.04-0.001), (r+0.04, -r-0.04-0.001), 3*np.pi/4],
+            [(r+0.04+0.003, -r-0.1), (r+0.04+0.003, r+0.12), np.pi/4]]
 
         for i in range(len(moves)):
             # Move to precut
@@ -673,7 +673,7 @@ class ManipulatorSystem:
         self.publish(3)
 
 
-    def pick_and_place_skin(self, pick_pos, pick_rot, prepick_dh, place_pos, place_rot, preplace_dh, grip_width):
+    def pick_and_place_skin_v1(self, pick_pos, pick_rot, prepick_dh, place_pos, place_rot, preplace_dh, grip_width):
         self.publish(0)
 
         self.set_policy(self.gain_dict['high']['Kx'], self.gain_dict['high']['Kxd'])
@@ -698,7 +698,7 @@ class ManipulatorSystem:
 
         self.set_policy(self.gain_dict['low']['Kx'], self.gain_dict['low']['Kxd'])
         print("=> prerotate:")
-        prerotate_pos = [place_pos[0], place_pos[1] + 0.16, place_pos[2]]
+        prerotate_pos = [place_pos[0], place_pos[1] + 0.15, place_pos[2]]
         prerotate_rot = axangle2mat([1, 0, 0], -np.pi / 3) @ axangle2mat([0, 0, 1], np.pi / 4)
         prerotate_pose = self.pos_mat_to_pose(prerotate_pos, prerotate_rot)
         self.move_to(*prerotate_pose, time_to_go=3.0)
@@ -706,7 +706,7 @@ class ManipulatorSystem:
         self.set_policy(self.gain_dict['high']['Kx'], self.gain_dict['high']['Kxd'])
         print("=> preplace:")
         # TODO: Need to tune this number
-        preplace_pos = [place_pos[0], place_pos[1] + 0.185, place_pos[2] - 0.0675]
+        preplace_pos = [place_pos[0], place_pos[1] + 0.1825, place_pos[2] - 0.07]
         preplace_pose = self.pos_mat_to_pose(preplace_pos, prerotate_rot)
         self.move_to(*preplace_pose, time_to_go=3.0)
 
@@ -716,7 +716,7 @@ class ManipulatorSystem:
         # rotate_pose = self.pos_mat_to_pose(rotate_pos, rotate_rot)
         # self.move_to(*rotate_pose, time_to_go=6.0)
 
-        self.close_gripper(0.035, blocking=False, grip_params=(0.01, 50))
+        self.close_gripper(0.04, blocking=False, grip_params=(0.01, 50))
 
         print("=> place:")
         down_pos = [place_pos[0], place_pos[1] + 0.1, place_pos[2] - 0.05]
@@ -730,6 +730,52 @@ class ManipulatorSystem:
         self.move_to(*postplace_pose, time_to_go=6.0)
 
         self.set_policy(self.gain_dict['high']['Kx'], self.gain_dict['high']['Kxd'])
+        print("=> back to prepick:")
+        self.move_to(*prepick_pose)
+
+        self.reset()
+        self.publish(3)
+
+
+    def pick_and_place_skin_v2(self, pick_pos, pick_rot, prepick_dh, place_pos, place_rot, preplace_dh, grip_width):
+        self.publish(0)
+
+        self.set_policy(self.gain_dict['high']['Kx'], self.gain_dict['high']['Kxd'])
+
+        print("=> prepick:")
+        self.open_gripper()
+        prepick_pos = [pick_pos[0], pick_pos[1], pick_pos[2] + prepick_dh]
+        prepick_pose = self.pos_rot_to_pose(prepick_pos, pick_rot)
+        self.move_to(*prepick_pose)
+
+        # Lower
+        print("=> pick:")
+        tuned_pick_rot = axangle2mat([0, 1, 0], -0.01) @ axangle2mat([0, 0, 1], pick_rot[2])
+        pick_pose = self.pos_mat_to_pose(pick_pos, tuned_pick_rot)
+        self.move_to(*pick_pose, time_to_go=2.0)
+
+        self.close_gripper(grip_width, blocking=False, grip_params=(0.02, 50))
+        time.sleep(4.0)
+
+        print("=> back to prepick:")
+        self.move_to(*prepick_pose)
+
+        print("=> preplace:")
+        preplace_pos = [place_pos[0], place_pos[1] - 0.01, place_pos[2] + preplace_dh]
+        preplace_rot = axangle2mat([0, 0, 1], np.pi / 4)
+        preplace_pose = self.pos_mat_to_pose(preplace_pos, preplace_rot)
+        self.move_to(*preplace_pose, time_to_go=3.0)
+
+        print("=> place:")
+        place_pos = [place_pos[0], place_pos[1] - 0.01, place_pos[2]]
+        place_pose = self.pos_mat_to_pose(place_pos, preplace_rot)
+        self.move_to(*place_pose, time_to_go=2.0)
+
+        print("=> slide:")
+        slide_pos = [place_pos[0], place_pos[1] + 0.1, place_pos[2]]
+        slide_pose = self.pos_mat_to_pose(slide_pos, preplace_rot)
+        self.move_to(*slide_pose, time_to_go=5.0)
+
         print("=> back to prepick:")
         self.move_to(*prepick_pose)
 

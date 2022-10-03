@@ -18,7 +18,7 @@ with open(os.path.join(cd, '..', 'env', 'camera_pose_world.yml'), 'r') as f:
 depth_optical_frame_pose = [0, 0, 0, 0.5, -0.5, 0.5, -0.5]
 
 
-def get_cube(pcd_msgs, target_color='white', visualize=False):
+def get_cube_center(pcd_msgs, target_color='white', visualize=False):
     pcd_all = o3d.geometry.PointCloud()
     for i in range(len(pcd_msgs)):
         cloud_rec = ros_numpy.point_cloud2.pointcloud2_to_array(pcd_msgs[i])
@@ -34,10 +34,9 @@ def get_cube(pcd_msgs, target_color='white', visualize=False):
         cloud_rgb = cloud_bgr[:, ::-1]
 
         # xyz filter
-        x_filter = (points.T[0] > 0.4 - 0.1) & (points.T[0] < 0.4 + 0.1)
-        y_filter = (points.T[1] > -0.1 - 0.1) & (points.T[1] < -0.1 + 0.1)
-        # TODO: Tune the numbers
-        z_filter = (points.T[2] > 0 + 0.005) & (points.T[2] < 0 + 0.07) # or 0.005
+        x_filter = (points.T[0] > 0.4 - 0.05) & (points.T[0] < 0.4 + 0.1)
+        y_filter = (points.T[1] > -0.1 - 0.05) & (points.T[1] < -0.1 + 0.1)
+        z_filter = (points.T[2] > 0 + 0.002) & (points.T[2] < 0 + 0.07) # or 0.005
         points = points[x_filter & y_filter & z_filter]
         cloud_rgb = cloud_rgb[x_filter & y_filter & z_filter, 1:]
         
@@ -77,4 +76,13 @@ def get_cube(pcd_msgs, target_color='white', visualize=False):
 
     # import pdb; pdb.set_trace()
 
-    return cube
+    cube_points = np.asarray(cube.points)
+    cube_proj_points = np.concatenate((cube_points[:, :2], np.zeros((cube_points.shape[0], 1))), axis=1)
+    cube_proj_pcd = o3d.geometry.PointCloud()
+    cube_proj_pcd.points = o3d.utility.Vector3dVector(cube_proj_points)
+    cube_proj_pcd = cube_proj_pcd.voxel_down_sample(voxel_size=0.003)
+
+    if visualize:
+        o3d.visualization.draw_geometries([cube_proj_pcd])
+
+    return cube_proj_pcd.get_center()[:2]
