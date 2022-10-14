@@ -18,7 +18,7 @@ with open(os.path.join(cd, '..', 'env', 'camera_pose_world.yml'), 'r') as f:
 depth_optical_frame_pose = [0, 0, 0, 0.5, -0.5, 0.5, -0.5]
 
 
-def get_cube_center(pcd_msgs, target_color='white', visualize=False):
+def get_cube_center(pcd_msgs, visualize=False):
     pcd_all = o3d.geometry.PointCloud()
     for i in range(len(pcd_msgs)):
         cloud_rec = ros_numpy.point_cloud2.pointcloud2_to_array(pcd_msgs[i])
@@ -85,4 +85,4 @@ def get_cube_center(pcd_msgs, target_color='white', visualize=False):
     if visualize:
         o3d.visualization.draw_geometries([cube_proj_pcd])
 
-    return cube_proj_pcd.get_center()[:2]
+    return cube, cube_proj_pcd.get_center()[:2]

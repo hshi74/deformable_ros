@@ -27,7 +27,7 @@ def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
 
     if pcd_signal == 1:
         pcd_msgs = [cam1_msg, cam2_msg, cam3_msg, cam4_msg]
-        cube = get_cube_center(pcd_msgs, target_color='white')
+        cube, _ = get_cube_center(pcd_msgs, visualize=True)
 
         pcd_signal = 0
 
