@@ -21,7 +21,7 @@ from utils import get_cube_center
 
 robot = ManipulatorSystem()
 
-with open('/scr/hxu/projects/robocook/config/tool_plan_params.yml', 'r') as f:
+with open('/scr/hshi74/projects/robocook/config/tool_plan_params.yml', 'r') as f:
     tool_params = yaml.load(f, Loader=yaml.FullLoader)
 
 
@@ -143,11 +143,12 @@ def random_grip(tool_name, n_grips, grip_width_max=0.025, grip_width_min=0.001):
         rot = np.random.uniform(*tool_params[tool_name]['rot_range'])
         grip_width = np.random.rand() * (grip_width_max - grip_width_min) + grip_width_min
 
-        params = [center[0], center[1], dist_to_center, rot, grip_width]
+        params = [dist_to_center, rot, grip_width]
         print(f"===== Grip {i+1}: {params} =====")
-        grip(robot, params)
+        grip(robot, center[:2], params)
 
 
+# OUTDATED
 def random_press(tool_name, n_presses):
     for i in range(n_presses):
         wait_for_visual()
@@ -170,6 +171,7 @@ def random_press(tool_name, n_presses):
         press(robot, params)
 
 
+# OUTDATED
 def random_roll(tool_name, n_rolls, roll_dist_noise=0.02):
     for i in range(n_rolls):
         wait_for_visual()

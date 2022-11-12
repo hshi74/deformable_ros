@@ -21,7 +21,7 @@ from transforms3d.quaternions import *
 fixed_frame = 'panda_link0'
 num_cams = 4
 
-date = '08-24'
+date = '11-01'
 
 cd = os.path.dirname(os.path.realpath(sys.argv[0]))
 tool_status_path = os.path.join(cd, '..', 'env', 'tool_status.yml')

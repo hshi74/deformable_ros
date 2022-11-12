@@ -131,15 +131,24 @@ def run(tool_name, param_seq):
     global request_center
 
     if 'gripper' in tool_name:
-        param_seq = param_seq.reshape(-1, 5)
+        param_seq = param_seq.reshape(-1, 3)
         for i in range(len(param_seq)):
             param_seq_updated = [*param_seq[i]]
             if 'plane' in tool_name:
-                param_seq_updated[4] = max(0.004, param_seq_updated[4] - 0.002)
+                param_seq_updated[-1] = max(0.004, param_seq_updated[-1] - 0.002)
             else:
-                param_seq_updated[4] = max(0.004, param_seq_updated[4] - 0.002)
+                param_seq_updated[-1] = max(0.004, param_seq_updated[-1] - 0.002)
+
+            if 'asym' in tool_name:
+                if param_seq_updated[1] > 0:
+                    param_seq_updated[1] -= np.pi
+                else:
+                    param_seq_updated[1] += np.pi
+
             print(f'===== Grip {i+1}: {param_seq_updated} =====')
-            grip(robot, param_seq_updated)
+            request_center = 1
+            wait_for_visual()
+            grip(robot, center[:2], param_seq_updated)
 
     elif 'press' in tool_name or 'punch' in tool_name:
         if 'circle' in tool_name:
@@ -151,9 +160,14 @@ def run(tool_name, param_seq):
         for i in range(len(param_seq)):
             # to compensate the execution error on z-axis
             param_seq_updated = [*param_seq[i]]
-            param_seq_updated[2] -= 0.01
+            if 'press' in tool_name:
+                param_seq_updated[2] -= 0.01
+            else:
+                param_seq_updated[2] -= 0.01
             print(f'===== Press {i+1}: {param_seq_updated} =====')
-            press(robot, param_seq_updated)
+            request_center = 1
+            wait_for_visual()
+            press(robot, center[:2], param_seq_updated)
 
     elif 'roller' in tool_name:
         param_seq = param_seq.reshape(-1, 5)
@@ -161,7 +175,9 @@ def run(tool_name, param_seq):
             param_seq_updated = [*param_seq[i]]
             param_seq_updated[2] = max(0.2, param_seq_updated[2] - 0.01)
             print(f'===== Roll {i+1}: {param_seq_updated} =====')
-            roll(robot, param_seq_updated)
+            request_center = 1
+            wait_for_visual()
+            roll(robot, center[:2], param_seq_updated, type=tool_name)
 
     elif 'cutter_planar' in tool_name:
         cut_planar(robot, param_seq, push_y=0.2)

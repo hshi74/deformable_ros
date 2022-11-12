@@ -98,7 +98,7 @@ def make_dumpling(debug=True):
     center = get_center()
     param_seq = [[center[0], center[1], 0, np.pi/4, 0.01], [center[0], center[1], 0, -np.pi/4, 0.01]]
     for params in param_seq:
-        grip(robot, params)
+        grip(robot, center[:2], params)
 
     robot.put_back_tool('gripper_sym_plane')
 
@@ -108,7 +108,7 @@ def make_dumpling(debug=True):
     center = get_center()
     param_seq = [[center[0], center[1], 0.069 + 0.1034 + 0.01, 0]]
     for params in param_seq:
-        press(robot, params)
+        press(robot, center[:2], params)
 
     robot.put_back_tool('press_square')
 
@@ -123,7 +123,7 @@ def make_dumpling(debug=True):
         [center[0], center[1], 0.089 + 0.1034 + 0.0125, np.pi / 4, 0.04]
     ]
     for params in param_seq:
-        roll(robot, params)
+        roll(robot, center[:2], params)
 
     robot.put_back_tool('roller_large')
 

@@ -18,24 +18,29 @@ from transforms3d.quaternions import *
 # spatula: pick_x, pick_y, place_x, place_y
 # hook: none
 
-def grip(robot, params, grip_h=0.1825, pregrip_dh=0.1):
-    center_x, center_y, dist_to_center, rot, grip_width = params
+def grip(robot, center, params, grip_h=0.18, pregrip_dh=0.1):
+    center_x, center_y = center
+    dist_to_center, rot, grip_width = params
 
     grip_pos_x = center_x - dist_to_center * np.sin(rot - np.pi / 4)
     grip_pos_y = center_y + dist_to_center * np.cos(rot - np.pi / 4)
 
-    if rot > np.pi / 2:
-        rot -= np.pi
-    elif rot < -np.pi / 2:
-        rot += np.pi
+    # if rot > np.pi / 2:
+    #     rot -= np.pi
+    # elif rot < -np.pi / 2:
+    #     rot += np.pi
     
     robot.grip((grip_pos_x, grip_pos_y, rot), grip_h, pregrip_dh, grip_width)
 
 
-def press(robot, params, prepress_dh=0.1):
+def press(robot, center, params, prepress_dh=0.1):
+    center_x, center_y = center
     press_x, press_y, press_z, rot = params
 
-    press_pos = [press_x, press_y, press_z]
+    ee_fingertip_offset, tool_center, tool_height = 0.1034, 0.069, 0.01
+
+    press_pos = [center_x + press_x, center_y + press_y, 
+        press_z + tool_center + tool_height + ee_fingertip_offset]
 
     if rot > np.pi / 2:
         rot -= np.pi
@@ -47,9 +52,19 @@ def press(robot, params, prepress_dh=0.1):
     robot.press(press_pos, press_rot, prepress_dh)
 
 
-def roll(robot, params, preroll_dh=0.12):
+def roll(robot, center, params, type='roller_large', preroll_dh=0.12):
+    center_x, center_y = center
     roll_x, roll_y, roll_z, rot, roll_dist = params
-    start_pos = [roll_x, roll_y, roll_z]
+
+    ee_fingertip_offset, tool_center = 0.1034, 0.089
+
+    if 'large' in type:
+        tool_height = 0.02
+    else:
+        tool_height = 0.012
+
+    start_pos = [center_x + roll_x, center_y + roll_y, 
+        roll_z + tool_center + tool_height + ee_fingertip_offset]
 
     if rot > np.pi / 2:
         rot -= np.pi
