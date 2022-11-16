@@ -141,14 +141,20 @@ def run(tool_name, param_seq):
 
             if 'asym' in tool_name:
                 if param_seq_updated[1] > 0:
-                    param_seq_updated[1] -= np.pi
+                    param_seq_updated[1] = max(-1.5, param_seq_updated[1] - np.pi)
                 else:
-                    param_seq_updated[1] += np.pi
+                    param_seq_updated[1] = param_seq_updated[1] + np.pi
+                param_seq_updated[0] *= -1
+                # param_seq_updated[1] = max(-1.5, param_seq_updated[1])
 
             print(f'===== Grip {i+1}: {param_seq_updated} =====')
             request_center = 1
             wait_for_visual()
-            grip(robot, center[:2], param_seq_updated)
+            if 'asym' in tool_name:
+                grip_h = 0.18
+            else:
+                grip_h = 0.1775
+            grip(robot, center[:2], param_seq_updated, grip_h=grip_h)
 
     elif 'press' in tool_name or 'punch' in tool_name:
         if 'circle' in tool_name:
@@ -163,7 +169,7 @@ def run(tool_name, param_seq):
             if 'press' in tool_name:
                 param_seq_updated[2] -= 0.01
             else:
-                param_seq_updated[2] -= 0.01
+                param_seq_updated[2] -= 0.02
             print(f'===== Press {i+1}: {param_seq_updated} =====')
             request_center = 1
             wait_for_visual()
