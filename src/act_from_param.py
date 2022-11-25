@@ -54,7 +54,8 @@ def press(robot, center, params, prepress_dh=0.1):
 
 def roll(robot, center, params, type='roller_large', preroll_dh=0.12):
     center_x, center_y = center
-    roll_x, roll_y, roll_z, rot, roll_dist = params
+    roll_x, roll_y, roll_z, rot = params
+    roll_dist = 0.06
 
     ee_fingertip_offset, tool_center = 0.1034, 0.089
 
@@ -68,8 +69,10 @@ def roll(robot, center, params, type='roller_large', preroll_dh=0.12):
 
     if rot > np.pi / 2:
         rot -= np.pi
+        roll_dist *= -1
     elif rot < -np.pi / 2:
         rot += np.pi
+        roll_dist *= -1
 
     roll_rot = [0.0, 0.0, rot]
     roll_delta = axangle2mat([0, 0, 1], roll_rot[2] + np.pi / 4) @ np.array([roll_dist, 0, 0]).T
@@ -78,7 +81,7 @@ def roll(robot, center, params, type='roller_large', preroll_dh=0.12):
     robot.roll(start_pos, roll_rot, end_pos, preroll_dh)
 
 
-def cut_planar(robot, params, cut_h=0.215, precut_dh=0.1, push_y=0.03):
+def cut_planar(robot, params, cut_h=0.21, precut_dh=0.1, push_y=0.03):
     cut_x, cut_y, cut_rot = params
     robot.cut_planar([cut_x, cut_y, cut_h], [0.0, 0.0, cut_rot], precut_dh, push_y=push_y)
 

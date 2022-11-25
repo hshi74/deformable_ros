@@ -578,7 +578,7 @@ class ManipulatorSystem:
 
         # Separate
         print("=> separate:")
-        separate_pos = [cut_pos[0], cut_pos[1] + push_y, cut_pos[2]]
+        separate_pos = [cut_pos[0], cut_pos[1] + push_y, cut_pos[2] + 0.01]
         separate_pose = self.pos_rot_to_pose(separate_pos, cut_rot)
         self.move_to(*separate_pose, time_to_go=3.0)
 
@@ -644,11 +644,11 @@ class ManipulatorSystem:
         #     [(r+0.04, -0.1), (r+0.04, 0.1), np.pi/4]]
         
         # cut and push vertically, then push horizontally
-        moves = [[(0.005, r+0.04+0.001), (r+0.04, r+0.04), 3*np.pi/4],
-            [(0.01, r+0.04+0.001), (-r-0.015, r+0.04), 3*np.pi/4],
+        moves = [[(0.005, r+0.04), (r+0.04, r+0.04-0.004), 3*np.pi/4],
+            [(0.01, r+0.04), (-r-0.015, r+0.04-0.004), 3*np.pi/4],
             [(-r, r+0.04), (-r, -r-0.02), 4*np.pi/5],
             # [(0.005, -r-0.04-0.0025), (-r-0.015, -r-0.04), 3*np.pi/4],
-            [(-r-0.015, -r-0.04-0.001), (r+0.04, -r-0.04-0.001), 3*np.pi/4],
+            [(-r, -r-0.04-0.001), (r+0.04, -r-0.04-0.001), 3*np.pi/4],
             [(r+0.04+0.003, -r-0.1), (r+0.04+0.003, r+0.12), np.pi/4]]
 
         for i in range(len(moves)):
@@ -877,7 +877,7 @@ class ManipulatorSystem:
 
         print("=> push down:")
         hook_down_pose = self.pos_rot_to_pose(
-            (hook_pos[0], hook_pos[1] - 0.15, hook_pos[2] + 0.025), hook_rot)
+            (hook_pos[0], hook_pos[1] - 0.14, hook_pos[2] + 0.035), hook_rot)
         self.move_to(*hook_down_pose)
 
         print("=> move up a little bit:")

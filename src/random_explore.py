@@ -133,13 +133,15 @@ def random_explore(tool_name):
         rate.sleep()
 
 
-def random_grip(tool_name, n_grips, grip_width_max=0.025, grip_width_min=0.001):
+def random_grip(tool_name, n_grips, grip_width_max=0.025, grip_width_min=0.004):
     for i in range(n_grips):
         wait_for_visual()
         center = get_center(bbox=False)
         # print(f"The center of the play_doh is {center}")
+        if 'plane' in tool_name:
+            grip_width_min = 0.015
 
-        dist_to_center = np.random.uniform(*tool_params[tool_name]['dist_range'])
+        dist_to_center = np.random.uniform(low=0.0, high=0.02)
         rot = np.random.uniform(*tool_params[tool_name]['rot_range'])
         grip_width = np.random.rand() * (grip_width_max - grip_width_min) + grip_width_min
 
@@ -157,9 +159,8 @@ def random_press(tool_name, n_presses):
 
         x_noise = tool_params[tool_name]['x_noise'] * (np.random.rand() * 2 - 1)
         y_noise = tool_params[tool_name]['y_noise'] * (np.random.rand() * 2 - 1)
-        z_noise = tool_params[tool_name]['z_noise'] * (np.random.rand() * 2 - 1)
-        press_pos = [center[0] + x_noise, center[1] + y_noise, 
-            0.069 + 0.1034 + center[2] + z_noise + 0.003]
+        z_noise = 0.02 * (np.random.rand() * 2 - 1)
+        press_pos = [x_noise,  y_noise, z_noise]
 
         if 'circle' in tool_name:
             rot = 0
@@ -168,7 +169,7 @@ def random_press(tool_name, n_presses):
 
         params = [*press_pos, rot]
         print(f"===== Press {i+1}: {params} =====")
-        press(robot, params)
+        press(robot, center[:2], params)
 
 
 # OUTDATED
@@ -180,19 +181,14 @@ def random_roll(tool_name, n_rolls, roll_dist_noise=0.02):
 
         x_noise = tool_params[tool_name]['x_noise'] * (np.random.rand() * 2 - 1)
         y_noise = tool_params[tool_name]['y_noise'] * (np.random.rand() * 2 - 1)
-        z_noise = tool_params[tool_name]['z_noise'] * (np.random.rand() * 2 - 1)
-        press_pos = [center[0] + x_noise, center[1] + y_noise, 
-            0.089 + 0.1034 + center[2] + z_noise + 0.005] 
+        z_noise = 0.02 * (np.random.rand() * 2 - 1)
+        press_pos = [x_noise,  y_noise, z_noise]
 
         rot = np.random.uniform(*tool_params[tool_name]['rot_range'])
 
-        roll_dist = 0.04 + roll_dist_noise * np.random.rand()
-        if np.random.randn() > 0.5:
-            roll_dist = -roll_dist
-
-        params = [*press_pos, rot, roll_dist]
+        params = [*press_pos, rot]
         print(f"===== Roll {i+1}: {params} =====")
-        roll(robot, params)
+        roll(robot, center[:2], params)
 
 
 def random_cut_planar(pos_noise=0.01, rot_noise=np.pi/4):
