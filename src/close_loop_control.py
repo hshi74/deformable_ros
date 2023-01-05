@@ -127,93 +127,19 @@ def wait_for_visual():
         rate.sleep()
 
 
-n_rolls = 0
 def run(tool_name, param_seq):
     global request_center
-    global n_rolls
 
     if 'gripper' in tool_name:
         param_seq = param_seq.reshape(-1, 3)
         for i in range(len(param_seq)):
             param_seq_updated = [*param_seq[i]]
-            if 'plane' in tool_name:
-                param_seq_updated[-1] = max(0.004, param_seq_updated[-1] - 0.005)
-            else:
-                param_seq_updated[-1] = max(0.004, param_seq_updated[-1] - 0.005)
-
-            if 'asym' in tool_name:
-                if param_seq_updated[1] > 0:
-                    param_seq_updated[1] = max(-1.5, param_seq_updated[1] - np.pi)
-                else:
-                    param_seq_updated[1] = param_seq_updated[1] + np.pi
-                param_seq_updated[0] *= -1
-                # param_seq_updated[1] = max(-1.5, param_seq_updated[1])
+            param_seq_updated[-1] = max(0.004, param_seq_updated[-1] - 0.005)
 
             print(f'===== Grip {i+1}: {param_seq_updated} =====')
             request_center = 1
             wait_for_visual()
-            if 'asym' in tool_name:
-                grip_h = 0.18
-            else:
-                grip_h = 0.1825
-            grip(robot, center[:2], param_seq_updated, grip_h=grip_h)
-
-    elif 'press' in tool_name or 'punch' in tool_name:
-        if 'circle' in tool_name:
-            param_seq = param_seq.reshape(-1, 3)
-            param_seq = np.concatenate((param_seq, np.zeros((len(param_seq), 1))), axis=1)
-        else:
-            param_seq = param_seq.reshape(-1, 4)
-
-        for i in range(len(param_seq)):
-            # to compensate the execution error on z-axis
-            param_seq_updated = [*param_seq[i]]
-            if 'press' in tool_name:
-                param_seq_updated[2] -= 0.01
-            else:
-                param_seq_updated[2] -= 0.02
-            print(f'===== Press {i+1}: {param_seq_updated} =====')
-            request_center = 1
-            wait_for_visual()
-            press(robot, center[:2], param_seq_updated)
-
-    elif 'roller' in tool_name:
-        param_seq = param_seq.reshape(-1, 4)
-        for i in range(len(param_seq)):
-            param_seq_updated = [*param_seq[i]]
-            if n_rolls == 0:
-                param_seq_updated[2] = param_seq_updated[2] - 0.01
-            else:
-                param_seq_updated[2] = param_seq_updated[2] - 0.015
-            print(f'===== Roll {i+1}: {param_seq_updated} =====')
-            request_center = 1
-            wait_for_visual()
-            roll(robot, center[:2], param_seq_updated, type=tool_name)
-            n_rolls += 1
-
-    elif 'cutter_planar' in tool_name:
-        cut_planar(robot, param_seq, push_y=0.2)
-
-    elif 'cutter_circular' in tool_name:
-        request_center = 1
-        wait_for_visual()
-        cut_circular(robot, center[:2])
-
-    elif 'pusher' in tool_name:
-        request_center = 1
-        wait_for_visual()
-        push(robot, center[:2])
-
-    elif 'spatula_small' in tool_name:
-        request_center = 1
-        wait_for_visual()
-        pick_and_place_skin(robot, [*center[:2], 0.393, -0.29], 0.02)
-
-    elif 'spatula_large' in tool_name:
-        pick_and_place_filling(robot, [0.5, -0.3, 0.393, -0.29], 0.015)
-
-    elif 'hook' in tool_name:
-        hook(robot)
+            grip(robot, center[:2], param_seq_updated)
 
     else:
         raise NotImplementedError

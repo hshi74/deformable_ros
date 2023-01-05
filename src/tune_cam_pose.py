@@ -91,7 +91,6 @@ def main():
     pcd_trans_vec = [0.0, 0.0, 0.0]
     pcd_rot_vec = [0.0, 0.0, 0.0]
 
-    
     br = tf.TransformBroadcaster()
     rate = rospy.Rate(100)
     save = False

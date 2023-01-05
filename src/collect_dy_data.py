@@ -1,5 +1,4 @@
 import glob
-from json import tool
 import numpy as np
 import os
 import random_explore
@@ -12,53 +11,35 @@ import yaml
 
 from datetime import datetime
 from geometry_msgs.msg import TransformStamped
+from manipulate import ManipulatorSystem
 from message_filters import ApproximateTimeSynchronizer, Subscriber
 from sensor_msgs.msg import PointCloud2
 from std_msgs.msg import UInt8, Float32, String
 from timeit import default_timer as timer
 from transforms3d.quaternions import *
 
-
 robot = random_explore.robot
 
 cd = os.path.dirname(os.path.realpath(sys.argv[0]))
 
-episode = 0
-tool_name = ''
-data_path = ''
-def get_tool_name():
-    global episode
-    global data_path
-    global tool_name
+hdd_str = '/media/hshi74/wd_drive/robocraft3d/raw_data'
+data_path = os.path.join(hdd_str, f'gripper_sym_rod_robot_v1')
 
-    tool_name_cur = ''
-    for key, value in robot.tool_status.items():
-        if value['status'] == 'using':
-            tool_name_cur = key
-            break
+os.system('mkdir -p ' + f"{data_path}")
 
-    if len(tool_name_cur) > 0 and tool_name != tool_name_cur:
-        tool_name = tool_name_cur
-        print(f'{tool_name} is being used!')
-        
-        data_path = os.path.join(cd, '..', 'raw_data', f'{tool_name}_robot_v4')
-        # hdd_str = '/media/hxu/Game\ Drive\ PS4/robocook/raw_data'
-        # data_path = os.path.join(hdd_str, f'{tool_name}_robot_v4')
-
-        os.system('mkdir -p ' + f"{data_path}")
-        data_list = sorted(glob.glob(os.path.join(data_path, '*')))
-        if len(data_list) > 0:
-            epi_prev = os.path.basename(data_list[-1]).split('_')[-1]
-            episode = int(epi_prev[:-1].lstrip('0') + epi_prev[-1]) + 1
+data_list = sorted(glob.glob(os.path.join(data_path, '*')))
+if len(data_list) > 0:
+    epi_prev = os.path.basename(data_list[-1]).split('_')[-1]
+    episode = int(epi_prev[:-1].lstrip('0') + epi_prev[-1]) + 1
+else:
+    episode = 0
 
 
 pcd_dy_signal = 0
 def action_signal_callback(msg):
     global pcd_dy_signal
-    if msg.data == 1:
-        pcd_dy_signal = 1
-    if msg.data == 2:
-        pcd_dy_signal = 0
+    if msg.data in [0, 1, 2]:
+        pcd_dy_signal = msg.data
 
 
 episode_signal = 0
@@ -87,7 +68,29 @@ def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
     global action_counted
     global seq
 
-    if pcd_dy_signal == 1:
+    def write_ros_bag(name):
+        seq_path = os.path.join(data_path, f'ep_{str(episode).zfill(3)}', f'seq_{str(seq).zfill(3)}')
+        os.system('mkdir -p ' + f"{seq_path}")
+        bag = rosbag.Bag(os.path.join(seq_path, f'{name}.bag'), 'w')
+
+        bag.write('/cam1/depth/color/points', cam1_msg)
+        bag.write('/cam2/depth/color/points', cam2_msg)
+        bag.write('/cam3/depth/color/points', cam3_msg)
+        bag.write('/cam4/depth/color/points', cam4_msg)
+
+        ee_pose = robot.get_ee_pose()
+        bag.write('/ee_pose', ee_pose)
+
+        gripper_width = robot.gripper.get_state().width
+        bag.write('/gripper_width', Float32(gripper_width))
+
+        bag.close()
+
+    if pcd_dy_signal == 2:
+        write_ros_bag(f'{-1:.3f}')
+        print(f"Ep {episode} Seq {seq}: recorded pcd before rotation ...")
+
+    elif pcd_dy_signal == 1:
         action_counted = False
         
         if time_start == 0.0:
@@ -99,30 +102,14 @@ def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
         time_diff_3 = cam4_msg.header.stamp.to_sec() - time_start - time_now
         
         if time_now == 0.0 or time_now - time_last > time_delta:
-            seq_path = os.path.join(data_path, f'ep_{str(episode).zfill(3)}', f'seq_{str(seq).zfill(3)}')
-            os.system('mkdir -p ' + f"{seq_path}")
-            # bag = rosbag.Bag(os.path.join(seq_path.replace('\\', ''), f'{time_now:.3f}.bag'), 'w')
-            bag = rosbag.Bag(os.path.join(seq_path, f'{time_now:.3f}.bag'), 'w')
-
-            bag.write('/cam1/depth/color/points', cam1_msg)
-            bag.write('/cam2/depth/color/points', cam2_msg)
-            bag.write('/cam3/depth/color/points', cam3_msg)
-            bag.write('/cam4/depth/color/points', cam4_msg)
-
-            ee_pose = robot.get_ee_pose()
-            bag.write('/ee_pose', ee_pose)
-
-            gripper_width = robot.gripper.get_state().width
-            bag.write('/gripper_width', Float32(gripper_width))
-
-            bag.close()
-
+            write_ros_bag(f'{time_now:.3f}')
+            
             print(f"Ep {episode} Seq {seq}: recorded pcd at {round(time_now, 3)} " + \
                 f"({round(time_diff_1, 3)}, {round(time_diff_2, 3)}, {round(time_diff_3, 3)})...")
             
             time_last = time_now
 
-    if pcd_dy_signal == 0:
+    elif pcd_dy_signal == 0:
         if time_start > 0 and not action_counted:
             n_actions += 1
             action_counted = True
@@ -177,7 +164,6 @@ def main():
 
     rate = rospy.Rate(100)
     while not rospy.is_shutdown():
-        get_tool_name()
         rate.sleep()
 
 

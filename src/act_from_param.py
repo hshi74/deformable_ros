@@ -1,116 +1,120 @@
 import numpy as np
+import fcl
+import yaml
 
-from transforms3d.axangles import axangle2mat
+from transforms3d.euler import euler2quat
 from transforms3d.quaternions import *
 
-# GNN planner:
-# gripper_asym: dist_to_center, rot(0-2pi), grip_width
-# gripper_sym_plane: dist_to_center, rot(0-pi), grip_width
-# gripper_sym_rod: dist_to_center, rot(0-pi), grip_width
-# press_circle / punch_circle: press_x, press_y, press_z
-# press_square / punch_square: press_x, press_y, press_z, rot(0-pi/2)
-# roller_small / roller_large: roll_x, roll_y, roll_z, rot(0-pi), roll_dist
+# gripper_sym_rod: 
+#   r: the radial distance
+#   theta: azimuthal angle
+#   phi: polar angle
+#   grip_width: minimum distance during the grip
 
-# Precoded planner:
-# pusher: push_x, push_y
-# cutter_planar: cut_x, cut_y, cut_rot
-# cutter_circular: cut_x, cut_y
-# spatula: pick_x, pick_y, place_x, place_y
-# hook: none
+ee_fingertip_T_mat = np.array([[0.707, 0.707, 0, 0], [-0.707, 0.707, 0, 0], [0, 0, 1, 0.1034], [0, 0, 0, 1]])
+# 5cm: 0.042192, 7cm: 0.052192, 8cm: 0.057192
+tool_center_z = 0.057192
+# 5cm: 0.0656, 7cm: 0.0856, 8cm: 0.0956
+finger_obj_list = [
+    fcl.CollisionObject(fcl.Cylinder(0.009, 0.0956), fcl.Transform()),
+    fcl.CollisionObject(fcl.Cylinder(0.009, 0.0956), fcl.Transform())
+]
 
-def grip(robot, center, params, grip_h=0.18, pregrip_dh=0.1):
-    center_x, center_y = center
-    dist_to_center, rot, grip_width = params
+finger_center_T_list = [
+    np.concatenate((np.concatenate((np.eye(3), np.array([[0.0, -0.019, tool_center_z]]).T), axis=1), [[0, 0, 0, 1]]), axis=0),
+    np.concatenate((np.concatenate((np.eye(3), np.array([[0.0, 0.019, tool_center_z]]).T), axis=1), [[0, 0, 0, 1]]), axis=0)
+]
 
-    grip_pos_x = center_x - dist_to_center * np.sin(rot - np.pi / 4)
-    grip_pos_y = center_y + dist_to_center * np.cos(rot - np.pi / 4)
+support = fcl.Cylinder(0.06, 0.08)
+support_T = fcl.Transform(np.array([0.435, -0.01, 0.04]))
+support_obj = fcl.CollisionObject(support, support_T)
 
-    # if rot > np.pi / 2:
-    #     rot -= np.pi
-    # elif rot < -np.pi / 2:
-    #     rot += np.pi
-    
-    robot.grip((grip_pos_x, grip_pos_y, rot), grip_h, pregrip_dh, grip_width)
-
-
-def press(robot, center, params, prepress_dh=0.1):
-    center_x, center_y = center
-    press_x, press_y, press_z, rot = params
-
-    ee_fingertip_offset, tool_center, tool_height = 0.1034, 0.069, 0.01
-
-    press_pos = [center_x + press_x, center_y + press_y, 
-        press_z + tool_center + tool_height + ee_fingertip_offset]
-
-    if rot > np.pi / 2:
-        rot -= np.pi
-    elif rot < -np.pi / 2:
-        rot += np.pi
-
-    press_rot = [0.0, 0.0, rot]
-
-    robot.press(press_pos, press_rot, prepress_dh)
+dough_bbox = fcl.Box(0.1, 0.1, 0.08)
+dough_bbox_T = fcl.Transform(np.array([0.435, -0.01, 0.12]))
+dough_bbox_obj = fcl.CollisionObject(dough_bbox, dough_bbox_T)
 
 
-def roll(robot, center, params, type='roller_large', preroll_dh=0.12):
-    center_x, center_y = center
-    roll_x, roll_y, roll_z, rot = params
-    roll_dist = 0.06
-
-    ee_fingertip_offset, tool_center = 0.1034, 0.089
-
-    if 'large' in type:
-        tool_height = 0.02
-    else:
-        tool_height = 0.012
-
-    start_pos = [center_x + roll_x, center_y + roll_y, 
-        roll_z + tool_center + tool_height + ee_fingertip_offset]
-
-    if rot > np.pi / 2:
-        rot -= np.pi
-        roll_dist *= -1
-    elif rot < -np.pi / 2:
-        rot += np.pi
-        roll_dist *= -1
-
-    roll_rot = [0.0, 0.0, rot]
-    roll_delta = axangle2mat([0, 0, 1], roll_rot[2] + np.pi / 4) @ np.array([roll_dist, 0, 0]).T
-    end_pos = start_pos + roll_delta
-
-    robot.roll(start_pos, roll_rot, end_pos, preroll_dh)
+def get_fingermid_pos(center, r, theta, phi):
+    center_x, center_y, center_z = center
+    pos_x = center_x + (r + tool_center_z) * np.sin(phi) * np.cos(theta - np.pi / 2)
+    pos_y = center_y + (r + tool_center_z) * np.sin(phi) * np.sin(theta - np.pi / 2)
+    pos_z = center_z + (r + tool_center_z) * np.cos(phi) 
+    return np.array([pos_x, pos_y, pos_z])
 
 
-def cut_planar(robot, params, cut_h=0.21, precut_dh=0.1, push_y=0.03):
-    cut_x, cut_y, cut_rot = params
-    robot.cut_planar([cut_x, cut_y, cut_h], [0.0, 0.0, cut_rot], precut_dh, push_y=push_y)
+def set_finger_transform(grip_width, fingertip_mat, fingermid_pos):
+    global finger_obj_list
+
+    for k in range(len(finger_obj_list)):
+        fingertip_pos = (fingertip_mat @ np.array([0, (2 * k - 1) * (grip_width / 2), 0]).T).T + fingermid_pos
+        fingertip_T = np.concatenate((np.concatenate((fingertip_mat, np.array([fingertip_pos]).T), axis=1), 
+            [[0, 0, 0, 1]]), axis=0) @ finger_center_T_list[k]
+        finger_T = fcl.Transform(fingertip_T[:3, :3], fingertip_T[:3, 3].T)
+        finger_obj_list[k].setTransform(finger_T)
 
 
-def cut_circular(robot, params, cut_h=0.18, precut_dh=0.1):
-    cut_x, cut_y = params
-    robot.cut_circular([cut_x, cut_y, cut_h], [0.0, 0.0, 0.0], precut_dh)
+def grip(robot, center, params, threshold=0.007):
+    succeeded = 1
 
+    r, theta, phi, grip_width = params
 
-def push(robot, params, push_h=0.22, prepush_dh=0.1):
-    push_x, push_y = params
-    robot.push([push_x, push_y, push_h], prepush_dh)
+    robot.rotate_stand(theta)
 
+    fingermid_pos = get_fingermid_pos(center, r, 0, phi)
+    ee_quat = qmult([0, 1, 0, 0], qmult(axangle2quat([0, 0, 1], 0 - np.pi / 4), 
+        axangle2quat([1, 1, 0], phi)))
+    ee_pos = fingermid_pos - (quat2mat(ee_quat) @ ee_fingertip_T_mat[:3, 3].T).T 
+    # import pdb; pdb.set_trace()
+    print(f'center: {center}\nparams: {params}\nfingermid:{fingermid_pos}\nee_pos: {ee_pos}\nee_quat: {ee_quat}')
 
-def pick_and_place_skin(robot, params, grip_width, pick_h=0.18, prepick_dh=0.2, 
-    place_h=0.2125, preplace_dh=0.1):
-    pick_x, pick_y, place_x, place_y = params
-    # robot.pick_and_place_skin_v1([pick_x, pick_y, pick_h], [0, 0, -np.pi / 4], prepick_dh, 
-    #     [place_x, place_y, place_h], [0, 0, -np.pi / 4], preplace_dh, grip_width)
-    robot.pick_and_place_skin_v2([pick_x, pick_y, pick_h], [0, 0, -np.pi / 4], prepick_dh, 
-        [place_x, place_y, place_h], [0, 0, -np.pi / 4], preplace_dh, grip_width)
+    fingertip_mat = quat2mat(ee_quat) @ ee_fingertip_T_mat[:3, :3]
 
+    set_finger_transform(grip_width, fingertip_mat, fingermid_pos)
 
-def pick_and_place_filling(robot, params, grip_width, pick_h=0.18, prepick_dh=0.2, 
-    place_h=0.22, preplace_dh=0.05):
-    pick_x, pick_y, place_x, place_y = params
-    robot.pick_and_place_filling([pick_x, pick_y, pick_h], [0, 0, -np.pi / 4], prepick_dh, 
-        [place_x, place_y, place_h], [0, 0, -np.pi / 4], preplace_dh, grip_width)
+    ret_min = float('inf')
+    for k in range(len(finger_obj_list)):
+        ret = fcl.distance(support_obj, finger_obj_list[k], fcl.DistanceRequest(), fcl.DistanceResult())
+        ret_min = min(ret, ret_min)
 
+    print(f"min distance: {ret_min}")
+    iter = 0
+    dist = 0.0
+    while ret_min < 0.5 * threshold or (iter > 0 and ret_min > threshold):
+        if ret_min < threshold:
+            if ret_min < 0:
+                dist += 2 * threshold
+            else:
+                dist += 0.2 * threshold
+        else:
+            dist -= 0.2 * threshold
 
-def hook(robot):
-    robot.hook_dumpling_clip([0.4, -0.2, 0.2])
+        fingermid_pos = get_fingermid_pos(center, r + dist, 0, phi)
+        set_finger_transform(grip_width, fingertip_mat, fingermid_pos)
+
+        ret_min = float('inf')
+        for k in range(len(finger_obj_list)):
+            ret = fcl.distance(support_obj, finger_obj_list[k], fcl.DistanceRequest(), fcl.DistanceResult())
+            ret_min = min(ret, ret_min)
+
+        if iter > 20:
+            print("Unable to figure out a good distance!")
+            succeeded = 0
+            break
+
+        # import pdb; pdb.set_trace()
+        print(f'min distance: {ret_min}\nadjusted distance: {dist}')
+
+    # print(f'min distance: {ret_min}\nadjusted distance: {dist}')
+
+    for k in range(len(finger_obj_list)):
+        ret_dough = fcl.distance(dough_bbox_obj, finger_obj_list[k], fcl.DistanceRequest(), fcl.DistanceResult())
+        if ret_dough > 0.0:
+            print("Too far from the dough!")
+            succeeded = 0
+            break
+
+    if succeeded:
+        ee_pos = fingermid_pos - (quat2mat(ee_quat) @ ee_fingertip_T_mat[:3, 3].T).T 
+        robot.grip((ee_pos, ee_quat), grip_width)
+
+    return succeeded, fingermid_pos

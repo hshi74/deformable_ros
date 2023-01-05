@@ -34,9 +34,9 @@ def get_cube_center(pcd_msgs, visualize=False):
         cloud_rgb = cloud_bgr[:, ::-1]
 
         # xyz filter
-        x_filter = (points.T[0] > 0.4 - 0.05) & (points.T[0] < 0.4 + 0.1)
-        y_filter = (points.T[1] > -0.1 - 0.05) & (points.T[1] < -0.1 + 0.1)
-        z_filter = (points.T[2] > 0 + 0.002) & (points.T[2] < 0 + 0.07) # or 0.005
+        x_filter = (points.T[0] > 0.45 - 0.1) & (points.T[0] < 0.45 + 0.1)
+        y_filter = (points.T[1] > 0.0 - 0.1) & (points.T[1] < 0.0 + 0.1)
+        z_filter = (points.T[2] > 0.08 + 0.0) & (points.T[2] < 0.08 + 0.1) # or 0.005
         points = points[x_filter & y_filter & z_filter]
         cloud_rgb = cloud_rgb[x_filter & y_filter & z_filter, 1:]
         
@@ -53,10 +53,9 @@ def get_cube_center(pcd_msgs, visualize=False):
     pcd_colors = np.asarray(pcd_all.colors, dtype=np.float32)
     # bgr
     pcd_rgb = pcd_colors[None, :, :]
-
     pcd_hsv = cv.cvtColor(pcd_rgb, cv.COLOR_RGB2HSV)
-    hsv_lower = np.array([0, 0, 0])
-    hsv_upper = np.array([120, 255, 255])
+    hsv_lower = np.array([0, 0.5, 0], dtype=np.float32)
+    hsv_upper = np.array([360, 1, 1], dtype=np.float32)
     mask = cv.inRange(pcd_hsv, hsv_lower, hsv_upper)
     cube_label = np.where(mask[0] == 255)
     
@@ -85,4 +84,4 @@ def get_cube_center(pcd_msgs, visualize=False):
     if visualize:
         o3d.visualization.draw_geometries([cube_proj_pcd])
 
-    return cube, cube_proj_pcd.get_center()[:2]
+    return cube, cube_proj_pcd.get_center()
