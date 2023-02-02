@@ -23,7 +23,7 @@ robot = random_explore.robot
 cd = os.path.dirname(os.path.realpath(sys.argv[0]))
 
 hdd_str = '/media/hshi74/wd_drive/robocraft3d/raw_data'
-data_path = os.path.join(hdd_str, f'gripper_sym_rod_robot_v1')
+data_path = os.path.join(hdd_str, f'gripper_sym_rod_robot_v3')
 
 os.system('mkdir -p ' + f"{data_path}")
 

@@ -34,7 +34,7 @@ camera_pose_dict_new = copy.deepcopy(camera_pose_dict)
 pos_stride = 0.0005
 rot_stride = 0.001
 
-tune_idx = [3]
+tune_idx = [4]
 marker_array_pub = rospy.Publisher('/visualization_marker', Marker, queue_size=100)
 
 signal = 0

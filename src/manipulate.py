@@ -208,8 +208,8 @@ class ManipulatorSystem:
         self.publish(1)
 
         # Grip
-        self.close_gripper(grip_width, blocking=True, grip_params=(0.02, 150))
-        time.sleep(6.0)
+        self.close_gripper(grip_width, blocking=True, grip_params=(0.01, 150))
+        time.sleep(8.0)
 
         self.publish(0)
 
@@ -228,7 +228,7 @@ class ManipulatorSystem:
 
 
     # grip_params is x, y, rz 
-    def rotate_stand(self, theta_delta, center_xy=(0.43, -0.008), grip_h=0.28, grip_width=0.07, pregrip_dh=0.07):
+    def rotate_stand(self, theta_delta, center_xy=(0.429, -0.008), grip_h=0.28, grip_width=0.07, pregrip_dh=0.03):
         self.reset_policy()
 
         # this number should be in the range of (-pi, pi]
@@ -275,11 +275,11 @@ class ManipulatorSystem:
         time.sleep(2.0)
 
         print("=> rotate:")
-        self.move_to(*rotate_pose, time_to_go=4.0)
+        self.move_to(*rotate_pose, time_to_go=abs(theta_robot_new - theta_robot)+1)
 
         # Release
         self.open_gripper(blocking=True)
-        time.sleep(2.0)
+        time.sleep(3.0)
 
         print("=> back to release pose:")
         self.move_to(*release_pose, time_to_go=2.0)

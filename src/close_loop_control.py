@@ -56,8 +56,6 @@ def command_callback(msg):
 
 
 pcd_signal = 0
-request_center = 0
-center = None
 def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
     global pcd_signal
     global center
@@ -87,62 +85,19 @@ def cloud_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
 
         pcd_signal = 0
 
-        if request_center:
-            _, center = get_cube_center([cam1_msg, cam2_msg, cam3_msg, cam4_msg])
-            # center = np.mean(np.asarray(cube.points)[:, :2], axis=0)
+    if pcd_signal == 2:
+        get_cube(cam1_msg, cam2_msg, cam3_msg, cam4_msg)
+
+        pcd_signal = 0
 
 
-img_signal = 0
-def image_callback(cam1_msg, cam2_msg, cam3_msg, cam4_msg):
-    global img_signal
+def run(param_seq):
+    param_seq = param_seq.reshape(-1, 5)
+    for i in range(len(param_seq)):
+        param_seq_updated = [*param_seq[i]]
 
-    if img_signal == 1:
-        image_msgs = [cam1_msg, cam2_msg, cam3_msg, cam4_msg]
-        br = CvBridge()
-        for i in range(len(image_msgs)):
-            # Convert ROS Image message to OpenCV image
-            img_bgr = br.imgmsg_to_cv2(image_msgs[i])
-            img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
-
-            cv2.imwrite(data_path + f'_cam_{i+1}.png', img_rgb)
-
-        print(f"[INFO] images written!")
-
-        img_signal = 0
-
-
-def wait_for_visual():
-    global pcd_signal
-    global request_center
-    global center
-
-    center = None
-    pcd_signal = 1
-    rate = rospy.Rate(100)
-    while not rospy.is_shutdown():
-        if center is not None:
-            request_center = 0
-            break
-
-        rate.sleep()
-
-
-def run(tool_name, param_seq):
-    global request_center
-
-    if 'gripper' in tool_name:
-        param_seq = param_seq.reshape(-1, 3)
-        for i in range(len(param_seq)):
-            param_seq_updated = [*param_seq[i]]
-            param_seq_updated[-1] = max(0.004, param_seq_updated[-1] - 0.005)
-
-            print(f'===== Grip {i+1}: {param_seq_updated} =====')
-            request_center = 1
-            wait_for_visual()
-            grip(robot, center[:2], param_seq_updated)
-
-    else:
-        raise NotImplementedError
+        print(f'===== Grip {i+1}: {param_seq_updated} =====')
+        grip(robot, param_seq_updated)
 
 
 def react():
@@ -151,7 +106,6 @@ def react():
     global command_str_signal
     global data_path_signal
     global pcd_signal
-    global img_signal
 
     command_fb_pub = rospy.Publisher('/command_feedback', UInt8, queue_size=10)
     
@@ -165,25 +119,12 @@ def react():
         command = command_list[1]
 
         if command == 'run':
-            if len(command_list) > 2: 
-                tool_name = command_list[2]
-            else:
-                raise ValueError
-
-            if robot.tool_status[tool_name]['status'] == 'ready':
-                for key, value in robot.tool_status.items():
-                    if value['status'] == 'using':
-                        print(f"========== Putting back {key} ==========")
-                        robot.put_back_tool(key)
-                        break
-        
-                print(f"========== Taking away {tool_name} ==========")
-                robot.take_away_tool(tool_name)
-
             while param_seq is None:
                 continue
 
-            run(tool_name, param_seq)
+            pcd_signal = 2
+            run(param_seq)
+            
             param_seq = None
             command_fb_pub.publish(UInt8(1))
 
@@ -200,16 +141,6 @@ def react():
 
             if 'pcd' in data_format_str:
                 pcd_signal = 1
-            if 'rgb' in data_format_str:
-                img_signal = 1
-
-        elif command == 'end':
-            for key, value in robot.tool_status.items():
-                if value['status'] == 'using':
-                    print(f"========== Putting back {key} ==========")
-                    # command_fb_pub.publish(UInt8(1))
-                    robot.put_back_tool(key)
-                    break
 
         else:
             print('========== ERROR: Unrecoganized command! ==========')
@@ -240,17 +171,6 @@ def main():
     )
 
     tss.registerCallback(cloud_callback)
-
-    tss = ApproximateTimeSynchronizer(
-        (Subscriber("/cam1/color/image_raw", Image), 
-        Subscriber("/cam2/color/image_raw", Image), 
-        Subscriber("/cam3/color/image_raw", Image), 
-        Subscriber("/cam4/color/image_raw", Image)),
-        queue_size=10,
-        slop=0.1
-    )
-
-    tss.registerCallback(image_callback)
 
     cd = os.path.dirname(os.path.realpath(sys.argv[0]))
     with open(os.path.join(os.path.join(cd, '..', 'env'), 'camera_pose_world.yml'), 'r') as f:
