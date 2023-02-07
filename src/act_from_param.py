@@ -87,8 +87,6 @@ def grip(robot, params, threshold=0.007):
 
     r, theta, phi1, phi2, grip_width = params
 
-    grip_width = max(0.001, grip_width - 0.015)
-
     robot.rotate_stand(theta)
     theta = 0
 
@@ -104,8 +102,6 @@ def grip(robot, params, threshold=0.007):
     print(f'center: {center}\nparams: {params}\nfingermid:{fingermid_pos}\nee_pos: {ee_pos}\nee_quat: {ee_quat}')
 
     fingertip_mat = quat2mat(ee_quat) @ ee_fingertip_T_mat[:3, :3]
-
-    # fingertip_mat = ee_fingertip_T_mat[:3, :3] @ quat2mat(ee_quat)
 
     set_finger_transform(grip_width, fingertip_mat, fingermid_pos)
 

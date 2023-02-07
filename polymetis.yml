@@ -326,6 +326,7 @@ dependencies:
       - entrypoints==0.4
       - executing==1.2.0
       - fastjsonschema==2.16.2
+      - gnupg==2.3.1
       - habitat-sim==0.2.1
       - ipykernel==6.19.4
       - ipython==8.7.0
@@ -348,6 +349,7 @@ dependencies:
       - psutil==5.9.4
       - ptyprocess==0.7.0
       - pure-eval==0.2.2
+      - pycryptodomex==3.16.0
       - pyquaternion==0.9.9
       - pyrsistent==0.19.3
       - python-fcl==0.7.0.1
